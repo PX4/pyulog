@@ -94,7 +94,9 @@ class ULog:
         def __init__(self, data, header):
             key_len, = struct.unpack('<B', data[0])
             type_key = parseString(data[1:1+key_len])
-            self.type,self.key=type_key.split(' ')
+            type_key_split = type_key.split(' ')
+            self.type = type_key_split[0]
+            self.key = type_key_split[1]
             if (self.type.startswith('char[')): # it's a string
                 self.value = parseString(data[1+key_len:])
             elif (self.type in ULog.UNPACK_TYPES):
