@@ -133,6 +133,17 @@ class ULog:
             self.timestamp, = struct.unpack('<Q', data[1:9])
             self.message = parseString(data[9:])
 
+        def logLevelStr(self):
+            if (self.log_level == ord('0')): return 'EMERG'
+            if (self.log_level == ord('1')): return 'ALERT'
+            if (self.log_level == ord('2')): return 'CRIT'
+            if (self.log_level == ord('3')): return 'ERR'
+            if (self.log_level == ord('4')): return 'WARNING'
+            if (self.log_level == ord('5')): return 'NOTICE'
+            if (self.log_level == ord('6')): return 'INFO'
+            if (self.log_level == ord('7')): return 'DEBUG'
+            return 'UNKNOWN'
+
     class MessageDropout:
         def __init__(self, data, header, timestamp):
             self.duration, = struct.unpack('<H', data)
