@@ -35,7 +35,7 @@ dropout_durations = [ dropout.duration for dropout in ulog.dropouts]
 print("Dropouts: count: {:}, total duration: {:.1f} s, max: {:} ms, mean: {:} ms"
         .format(len(dropout_durations), sum(dropout_durations)/1000.,
                 max(dropout_durations),
-                sum(dropout_durations)/len(dropout_durations)))
+                int(sum(dropout_durations)/len(dropout_durations))))
 
 print("Info Messages:")
 for k in ulog.msg_info_dict:

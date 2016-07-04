@@ -24,7 +24,7 @@ class ULog:
     """
 
     """ constants """
-    HEADER_BYTES = '\x55\x4c\x6f\x67\x01\x12\x35'
+    HEADER_BYTES = b'\x55\x4c\x6f\x67\x01\x12\x35'
 
     # message types
     MSG_TYPE_FORMAT = ord('F')
@@ -92,7 +92,7 @@ class ULog:
 
     class MessageInfo:
         def __init__(self, data, header):
-            key_len, = struct.unpack('<B', data[0])
+            key_len, = struct.unpack('<B', data[0:1])
             type_key = parseString(data[1:1+key_len])
             type_key_split = type_key.split(' ')
             self.type = type_key_split[0]
@@ -131,7 +131,7 @@ class ULog:
             
     class MessageLogging:
         def __init__(self, data, header):
-            self.log_level, = struct.unpack('<B', data[0])
+            self.log_level, = struct.unpack('<B', data[0:1])
             self.timestamp, = struct.unpack('<Q', data[1:9])
             self.message = parseString(data[9:])
 
@@ -158,7 +158,7 @@ class ULog:
 
     class MessageAddLogged:
         def __init__(self, data, header, message_formats):
-            self.multi_id, = struct.unpack('<B', data[0])
+            self.multi_id, = struct.unpack('<B', data[0:1])
             self.msg_id, = struct.unpack('<H', data[1:3])
             self.message_name = parseString(data[3:])
             self.field_data = [] # list of FieldData
@@ -241,7 +241,7 @@ class ULog:
             raise Exception("Invalid file format (Header too short)")
         if (header_data[:7] != self.HEADER_BYTES):
             raise Exception("Invalid file format (Failed to parse header)")
-        if (header_data[7] != '\x00'):
+        if (header_data[7:8] != b'\x00'):
             print("Warning: unknown file version. Will attempt to read it anyway")
 
         # read timestamp
