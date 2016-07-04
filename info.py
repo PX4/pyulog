@@ -32,7 +32,10 @@ ulog = ULog(ulog_file_name, msg_filter)
 
 
 dropout_durations = [ dropout.duration for dropout in ulog.dropouts]
-print("Dropouts: count: {:}, total duration: {:.1f} s, max: {:} ms, mean: {:} ms"
+if len(dropout_durations) == 0:
+    print("No Dropouts")
+else:
+    print("Dropouts: count: {:}, total duration: {:.1f} s, max: {:} ms, mean: {:} ms"
         .format(len(dropout_durations), sum(dropout_durations)/1000.,
                 max(dropout_durations),
                 int(sum(dropout_durations)/len(dropout_durations))))
