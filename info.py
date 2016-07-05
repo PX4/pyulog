@@ -53,9 +53,12 @@ if verbose:
         h1, m1, s1, h2, m2, s2))
 
     print("")
-    print("Message Name (multi id): number of data points")
+    print("{:<41} {:7}, {:10}".format("Name (multi id, message size in bytes)",
+        "number of data points", "total bytes"))
     for d in ulog.data_list:
-        print(" {0} ({1}): {2}".format(d.name, d.multi_id,
-            len(d.data['timestamp'])))
+        message_size = sum([ ULog.UNPACK_TYPES[f.type_str][1] for f in d.field_data ])
+        num_data_points = len(d.data['timestamp'])
+        name_id = "{:} ({:}, {:})".format(d.name, d.multi_id, message_size)
+        print(" {:<40} {:7d} {:10d}".format(name_id, num_data_points, message_size * num_data_points))
     
 
