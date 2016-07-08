@@ -54,7 +54,7 @@ for d in data:
     output_file_name = output_file_prefix + '_' + d.name + "_" + str(d.multi_id) + '.csv'
     print("Writing {0} ({1} data points)".format(output_file_name,
         len(d.data['timestamp'])))
-    with open(output_file_name, 'wb') as csvfile:
+    with open(output_file_name, 'w') as csvfile:
         delimiter = args.delimiter
 
         # use same field order as in the log, except for the timestamp
