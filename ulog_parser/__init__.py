@@ -70,15 +70,10 @@ class ULog:
             self.name = message_add_logged_obj.message_name
             self.field_data = message_add_logged_obj.field_data
             self.timestamp_idx = message_add_logged_obj.timestamp_idx
-            # convert to numpy arrays
-            self.data = {} # dict of key=field name, value=numpy array of data
-            data_tuples = message_add_logged_obj.data_tuples
-            num_data_points = len(data_tuples)
-            for i in range(len(self.field_data)):
-                dtype = ULog.UNPACK_TYPES[self.field_data[i].type_str][2]
-                data_array = np.fromiter([x[i] for x in data_tuples], dtype)
-                self.data[self.field_data[i].field_name] = data_array
 
+            # convert into numpy dict of arrays
+            self.data = np.frombuffer(message_add_logged_obj.buffer,
+                    dtype=message_add_logged_obj.dtype)
 
 
     subscriptions = {} # dict of key=msg_id, value=MessageAddLogged
@@ -165,11 +160,22 @@ class ULog:
             self.timestamp_idx = -1
             self.parseFormat(message_formats)
 
-            self.data_tuples = [] # list of data tuples, format given by field_data
-            self.unpack_str = '<'
+            self.timestamp_offset = 0
             for field in self.field_data:
-                unpack_type = ULog.UNPACK_TYPES[field.type_str]
-                self.unpack_str += unpack_type[0]
+                if field.field_name == 'timestamp':
+                    break
+                self.timestamp_offset += ULog.UNPACK_TYPES[field.type_str][1]
+
+            self.buffer = bytearray() # accumulate all message data here
+
+            # construct types for numpy
+            self.dtype = []
+            for field in self.field_data:
+                dt = ULog.UNPACK_TYPES[field.type_str][2]
+                self.dtype.append((field.field_name, dt))
+            self.dtype = np.dtype(self.dtype)
+            self.dtype = self.dtype.newbyteorder('<')
+
 
         def parseFormat(self, message_formats):
             self.parseNestedType('', self.message_name, message_formats)
@@ -206,10 +212,10 @@ class ULog:
             msg_id, = struct.unpack('<H', data[:2])
             if msg_id in subscriptions:
                 subscription = subscriptions[msg_id]
-                # read the data: all at once to a tuple
-                subscription.data_tuples.append(struct.unpack(subscription.unpack_str,
-                    data[2:]))
-                self.timestamp = subscription.data_tuples[-1][subscription.timestamp_idx]
+                # accumulate data to a buffer, will be parsed later
+                subscription.buffer += data[2:]
+                t_off = subscription.timestamp_offset
+                self.timestamp, = struct.unpack('<Q', data[t_off+2:t_off+10])
             else:
                 self.timestamp = 0
 
@@ -302,7 +308,7 @@ class ULog:
         # convert into final representation
         while self.subscriptions:
             key, value = self.subscriptions.popitem()
-            data_item = ULog.Data(value)
-            if len(data_item.data['timestamp']) > 0: # only add if we have data
+            if len(value.buffer) > 0: # only add if we have data
+                data_item = ULog.Data(value)
                 self.data_list.append(data_item)
 
