@@ -76,6 +76,23 @@ class ULog:
             self.data = np.frombuffer(message_add_logged_obj.buffer,
                     dtype=message_add_logged_obj.dtype)
 
+        def list_value_changes(self, field_name):
+            """ get a list of (timestamp, value) tuples, whenever the value
+            changes. The first data point with non-zero timestamp is always
+            included, messages with timestamp = 0 are ignored """
+
+            t = self.data['timestamp']
+            x = self.data[field_name]
+            indices = t != 0 # filter out 0 values
+            t = t[indices]
+            x = x[indices]
+            if len(t) == 0: return []
+            ret = [(t[0], x[0])]
+            indices = np.where(x[:-1] != x[1:])[0] + 1
+            ret.extend(zip(t[indices], x[indices]))
+            return ret
+
+
 
     """ The following are internal representations only """
 
