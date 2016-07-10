@@ -53,7 +53,8 @@ class ULog:
             }
 
 
-    """ parsed data """
+    """ parsed data: public interface """
+
     start_timestamp = 0 # timestamp of file start
     last_timestamp = 0 # timestam of last message
     msg_info_dict = {} # dict of all information messages
@@ -75,6 +76,8 @@ class ULog:
             self.data = np.frombuffer(message_add_logged_obj.buffer,
                     dtype=message_add_logged_obj.dtype)
 
+
+    """ The following are internal representations only """
 
     subscriptions = {} # dict of key=msg_id, value=MessageAddLogged
 
@@ -108,9 +111,9 @@ class ULog:
             self.fields = [] # list of tuples (type, array_size, name)
             for t in types_str:
                 if len(t) > 0:
-                    self.fields.append(self.extractType(t))
+                    self.fields.append(self.extract_type(t))
 
-        def extractType(self, field_str):
+        def extract_type(self, field_str):
             field_str_split = field_str.split(' ')
             type_str = field_str_split[0]
             name_str = field_str_split[1]
@@ -130,7 +133,7 @@ class ULog:
             self.timestamp, = struct.unpack('<Q', data[1:9])
             self.message = parseString(data[9:])
 
-        def logLevelStr(self):
+        def log_level_str(self):
             if (self.log_level == ord('0')): return 'EMERG'
             if (self.log_level == ord('1')): return 'ALERT'
             if (self.log_level == ord('2')): return 'CRIT'
@@ -158,7 +161,7 @@ class ULog:
             self.message_name = parseString(data[3:])
             self.field_data = [] # list of FieldData
             self.timestamp_idx = -1
-            self.parseFormat(message_formats)
+            self.parse_format(message_formats)
 
             self.timestamp_offset = 0
             for field in self.field_data:
@@ -177,15 +180,15 @@ class ULog:
             self.dtype = self.dtype.newbyteorder('<')
 
 
-        def parseFormat(self, message_formats):
-            self.parseNestedType('', self.message_name, message_formats)
+        def parse_format(self, message_formats):
+            self.parse_nested_type('', self.message_name, message_formats)
 
             # remove padding fields at the end
             while (len(self.field_data) > 0 and
                     self.field_data[-1].field_name.startswith('_padding')):
                 self.field_data.pop()
 
-        def parseNestedType(self, prefix_str, type_name, message_formats):
+        def parse_nested_type(self, prefix_str, type_name, message_formats):
             # we flatten nested types
             message_format = message_formats[type_name]
             for (type_name, array_size, field_name) in message_format.fields:
@@ -201,10 +204,10 @@ class ULog:
                 else: # nested type
                     if (array_size > 1):
                         for i in range(array_size):
-                            self.parseNestedType(prefix_str+field_name+'['+str(i)+'].',
+                            self.parse_nested_type(prefix_str+field_name+'['+str(i)+'].',
                                     type_name, message_formats)
                     else:
-                        self.parseNestedType(prefix_str+field_name+'.',
+                        self.parse_nested_type(prefix_str+field_name+'.',
                                 type_name, message_formats)
 
     class MessageData:
@@ -215,6 +218,7 @@ class ULog:
                 # accumulate data to a buffer, will be parsed later
                 subscription.buffer += data[2:]
                 t_off = subscription.timestamp_offset
+                # TODO: the timestamp can have another size than uint64
                 self.timestamp, = struct.unpack('<Q', data[t_off+2:t_off+10])
             else:
                 self.timestamp = 0
@@ -235,13 +239,13 @@ class ULog:
         self.file_handle = open(file_name, "rb")
 
         # parse the whole file
-        self.readFileHeader()
+        self.read_file_header()
         self.last_timestamp = self.start_timestamp
-        self.readFileDefinitions()
-        self.readFileData(message_name_filter_list)
+        self.read_file_definitions()
+        self.read_file_data(message_name_filter_list)
 
 
-    def readFileHeader(self):
+    def read_file_header(self):
         header_data = self.file_handle.read(16)
         if (len(header_data)) != 16:
             raise Exception("Invalid file format (Header too short)")
@@ -253,7 +257,7 @@ class ULog:
         # read timestamp
         self.start_timestamp, = struct.unpack('<Q', header_data[8:])
 
-    def readFileDefinitions(self):
+    def read_file_definitions(self):
         while(True):
             data = self.file_handle.read(3)
             header = self.MessageHeader(data)
@@ -273,7 +277,7 @@ class ULog:
                 break # end of section
             #else: skip
 
-    def readFileData(self, message_name_filter_list):
+    def read_file_data(self, message_name_filter_list):
         try:
             while(True):
                 data = self.file_handle.read(3)

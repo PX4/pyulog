@@ -15,7 +15,7 @@ class PX4ULog:
         self.ulog = ulog_object
 
 
-    def getMavType(self):
+    def get_mav_type(self):
         """ return the MAV type as string from initial parameters """
 
         if 'MAV_TYPE' in self.ulog.initial_parameters:

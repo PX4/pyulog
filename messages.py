@@ -26,7 +26,7 @@ for m in ulog.logged_messages:
     m1, s1 = divmod(int(m.timestamp/1e6), 60)
     h1, m1 = divmod(m1, 60)
     print("{:d}:{:02d}:{:02d} {:}: {:}".format(
-        h1, m1, s1, m.logLevelStr(), m.message))
+        h1, m1, s1, m.log_level_str(), m.message))
 
 
 
