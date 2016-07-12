@@ -53,18 +53,6 @@ class ULog:
             }
 
 
-    """ parsed data: public interface """
-
-    start_timestamp = 0 # timestamp of file start
-    last_timestamp = 0 # timestam of last message
-    msg_info_dict = {} # dict of all information messages
-    initial_parameters = {} # dict of all initially set parameters (key=param name)
-    changed_parameters = [] # list of all changed parameters (tuple of (timestamp, name, value))
-    message_formats = {} # dict with key=format name, value = MessageFormat object
-    logged_messages = [] # array of MessageLogging objects
-    dropouts = [] # list of MessageDropout objects
-    data_list = [] # extracted data: list of Data objects
-
     class Data:
         def __init__(self, message_add_logged_obj):
             self.multi_id = message_add_logged_obj.multi_id
@@ -248,6 +236,21 @@ class ULog:
         @param message_name_filter_list: list of strings, to only load messages
                with the given names.
         """
+
+
+        """ parsed data: public interface """
+
+        self.start_timestamp = 0 # timestamp of file start
+        self.last_timestamp = 0 # timestam of last message
+        self.msg_info_dict = {} # dict of all information messages
+        self.initial_parameters = {} # dict of all initially set parameters (key=param name)
+        self.changed_parameters = [] # list of all changed parameters (tuple of (timestamp, name, value))
+        self.message_formats = {} # dict with key=format name, value = MessageFormat object
+        self.logged_messages = [] # array of MessageLogging objects
+        self.dropouts = [] # list of MessageDropout objects
+        self.data_list = [] # extracted data: list of Data objects
+
+
         self.loadFile(file_name, message_name_filter_list)
 
     def loadFile(self, file_name, message_name_filter_list):
