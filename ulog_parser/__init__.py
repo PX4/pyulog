@@ -82,11 +82,6 @@ class ULog:
 
 
 
-    """ The following are internal representations only """
-
-    subscriptions = {} # dict of key=msg_id, value=MessageAddLogged
-
-
     """ Representations of the messages from the log file """
 
     class MessageHeader:
@@ -249,6 +244,11 @@ class ULog:
         self.logged_messages = [] # array of MessageLogging objects
         self.dropouts = [] # list of MessageDropout objects
         self.data_list = [] # extracted data: list of Data objects
+
+
+        """ The following are internal representations only """
+
+        self.subscriptions = {} # dict of key=msg_id, value=MessageAddLogged
 
 
         self.loadFile(file_name, message_name_filter_list)
