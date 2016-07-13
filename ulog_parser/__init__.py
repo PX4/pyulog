@@ -303,6 +303,9 @@ class ULog:
                 data = self.file_handle.read(3)
                 header = self.MessageHeader(data)
                 data = self.file_handle.read(header.msg_size)
+                if len(data) < header.msg_size:
+                    break # less data than expected. File is most likely cut
+
                 if (header.msg_type == self.MSG_TYPE_PARAMETER):
                     msg_info = self.MessageInfo(data, header)
                     self.changed_parameters.append((self.last_timestamp,
