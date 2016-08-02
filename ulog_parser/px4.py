@@ -28,3 +28,15 @@ class PX4ULog:
         return 'unknown type'
 
 
+    def get_estimator(self):
+        """ return the configured estimator as string from initial parameters """
+
+        if 'SYS_MC_EST_GROUP' in self.ulog.initial_parameters:
+            mav_type = self.ulog.initial_parameters['SYS_MC_EST_GROUP']
+            if (mav_type == 0): return 'INAV'
+            if (mav_type == 1): return 'LPE'
+            if (mav_type == 2): return 'EKF2'
+        return 'unknown'
+
+
+
