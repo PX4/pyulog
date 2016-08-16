@@ -280,6 +280,8 @@ class ULog:
     def read_file_definitions(self):
         while(True):
             data = self.file_handle.read(3)
+            if not data:
+                break
             header = self.MessageHeader(data)
             data = self.file_handle.read(header.msg_size)
             if (header.msg_type == self.MSG_TYPE_INFO):
