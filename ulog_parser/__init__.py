@@ -4,7 +4,7 @@ from __future__ import print_function
 import numpy as np
 import struct, sys
 
-__author__  = "Beat Kueng"
+__author__ = "Beat Kueng"
 
 
 # check python version
@@ -134,15 +134,14 @@ class ULog:
             self.message = parseString(data[9:])
 
         def log_level_str(self):
-            if (self.log_level == ord('0')): return 'EMERG'
-            if (self.log_level == ord('1')): return 'ALERT'
-            if (self.log_level == ord('2')): return 'CRIT'
-            if (self.log_level == ord('3')): return 'ERR'
-            if (self.log_level == ord('4')): return 'WARNING'
-            if (self.log_level == ord('5')): return 'NOTICE'
-            if (self.log_level == ord('6')): return 'INFO'
-            if (self.log_level == ord('7')): return 'DEBUG'
-            return 'UNKNOWN'
+            return {ord('0'): 'EMERG',
+                    ord('1'): 'ALERT',
+                    ord('2'): 'CRIT',
+                    ord('3'): 'ERR',
+                    ord('4'): 'WARNING',
+                    ord('5'): 'NOTICE',
+                    ord('6'): 'INFO',
+                    ord('7'): 'DEBUG'}.get(self.log_level, 'UNKNOWN')
 
     class MessageDropout:
         def __init__(self, data, header, timestamp):
@@ -340,4 +339,3 @@ class ULog:
             if len(value.buffer) > 0: # only add if we have data
                 data_item = ULog.Data(value)
                 self.data_list.append(data_item)
-
