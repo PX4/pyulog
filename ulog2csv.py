@@ -16,7 +16,7 @@ parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
 parser.add_argument('-m', '--messages', dest='messages',
         help=("Only consider given messages. Must be a comma-separated list of"
-              "names, like 'sensor_combined,vehicle_gps_position'"))
+              " names, like 'sensor_combined,vehicle_gps_position'"))
 parser.add_argument('-d', '--delimiter', dest='delimiter', action='store',
                     help="Use delimiter in CSV (default is ',')", default=',')
 
@@ -66,15 +66,10 @@ for d in data:
         # slow...
 
         # write the header
-        last_elem = len(data_keys)-1
-        # for k in range(len(data_keys)):
-        #    csvfile.write(data_keys[k])
-        #    if k != last_elem:
-        #        csvfile.write(delimiter)
-        # csvfile.write('\n')
         csvfile.write(delimiter.join(data_keys) + '\n')
 
         # write the data
+        last_elem = len(data_keys)-1
         for i in range(len(d.data['timestamp'])):
             for k in range(len(data_keys)):
                 csvfile.write(str(d.data[data_keys[k]][i]))
