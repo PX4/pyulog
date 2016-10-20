@@ -60,9 +60,13 @@ class ULog:
             self.field_data = message_add_logged_obj.field_data
             self.timestamp_idx = message_add_logged_obj.timestamp_idx
 
-            # convert into numpy dict of arrays
-            self.data = np.frombuffer(message_add_logged_obj.buffer,
+            # get data as numpy.ndarray
+            d = np.frombuffer(message_add_logged_obj.buffer,
                     dtype=message_add_logged_obj.dtype)
+            # convert into dict of np.array (which is easier to handle)
+            self.data = {}
+            for name in d.dtype.names:
+                self.data[name] = d[name]
 
         def list_value_changes(self, field_name):
             """ get a list of (timestamp, value) tuples, whenever the value
