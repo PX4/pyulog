@@ -6,14 +6,20 @@ documented [here](http://dev.px4.io/advanced-ulog-file-format.html).
 
 #### Installation ####
 
+Installation with package manager:
+```bash
+pip install pyulog
+```
+
+Installation from source:
 ```bash
 python setup.py build install
 ```
 
 #### Command Line Scripts ####
-- `pyulog_info`: display information from an ULog file.
-- `pyulog_messages`: display logged messages from an ULog file.
-- `pyulog_params`: extract parameters from an ULog file.
+- `ulog_info`: display information from an ULog file.
+- `ulog_messages`: display logged messages from an ULog file.
+- `ulog_params`: extract parameters from an ULog file.
 - `ulog2csv`: convert ULog to CSV files.
 
 
