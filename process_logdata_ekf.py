@@ -41,11 +41,33 @@ for d in data:
         ekf2_innovations = d.data
         print('found ekf2_innovation data')
 
+# extract data from sensor reflight check message
+sensor_preflight = {}
+for d in data:
+    if d.name == 'sensor_preflight':
+        sensor_preflight = d.data
+        print('found sensor_preflight data')
+
 # create summary plots
 # save the plots to PDF
 from matplotlib.backends.backend_pdf import PdfPages
 output_plot_filename = ulog_file_name + ".pdf"
 pp = PdfPages(output_plot_filename)
+
+# plot IMU consistency data
+if ('accel_inconsistency_m_s_s' in sensor_preflight.keys()) and ('gyro_inconsistency_rad_s' in sensor_preflight.keys()):
+    plt.figure(0,figsize=(20,13))
+    plt.subplot(2,1,1)
+    plt.plot(sensor_preflight['accel_inconsistency_m_s_s'],'b')
+    plt.title('IMU Consistency Check Levels')
+    plt.ylabel('acceleration (m/s/s)')
+    plt.xlabel('data index')
+    plt.grid()
+    plt.subplot(2,1,2)
+    plt.plot(sensor_preflight['gyro_inconsistency_rad_s'],'b')
+    plt.ylabel('angular rate (rad/s)')
+    plt.xlabel('data index')
+    pp.savefig()
 
 # vertical velocity and position innovations
 plt.figure(1,figsize=(20,13))
