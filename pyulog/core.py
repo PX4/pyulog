@@ -138,10 +138,10 @@ class ULog:
             self.message = parseString(data[9:])
 
         def log_level_str(self):
-            return {ord('0'): 'EMERG',
+            return {ord('0'): 'EMERGENCY',
                     ord('1'): 'ALERT',
-                    ord('2'): 'CRIT',
-                    ord('3'): 'ERR',
+                    ord('2'): 'CRITICAL',
+                    ord('3'): 'ERROR',
                     ord('4'): 'WARNING',
                     ord('5'): 'NOTICE',
                     ord('6'): 'INFO',
