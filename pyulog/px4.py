@@ -20,11 +20,34 @@ class PX4ULog:
         """ return the MAV type as string from initial parameters """
 
         mav_type = self.ulog.initial_parameters.get('MAV_TYPE', None)
-        return {1: 'Fixed Wing',
-                2: 'Multirotor',
-                20: 'VTOL Tailsitter',
-                21: 'VTOL Tiltrotor',
-                22: 'VTOL Standard'}.get(mav_type, 'unknown type')
+        return {0: 'Generic',
+                1: 'Fixed Wing',
+                2: 'Quadrotor',
+                3: 'Coaxial helicopter',
+                4: 'Normal helicopter with tail rotor',
+                5: 'Ground installation',
+                6: 'Ground Control Station',
+                7: 'Airship, controlled',
+                8: 'Free balloon, uncontrolled',
+                9: 'Rocket',
+                10: 'Ground Rover',
+                11: 'Surface Vessel, Boat, Ship',
+                12: 'Submarine',
+                13: 'Hexarotor',
+                14: 'Octorotor',
+                15: 'Tricopter',
+                16: 'Flapping wing',
+                17: 'Kite',
+                18: 'Onboard Companion Controller',
+                19: 'Two-rotor VTOL (Tailsitter)',
+                20: 'Quad-rotor VTOL (Tailsitter)',
+                21: 'Tiltrotor VTOL',
+                22: 'VTOL Standard', #VTOL reserved 2
+                23: 'VTOL reserved 3',
+                24: 'VTOL reserved 4',
+                25: 'VTOL reserved 5',
+                26: 'Onboard Gimbal',
+                27: 'Onboard ADSB Peripheral'}.get(mav_type, 'unknown type')
 
     def get_estimator(self):
         """return the configured estimator as string from initial parameters"""
