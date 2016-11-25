@@ -214,7 +214,7 @@ class ULog:
                                 type_name, message_formats)
 
     class MessageData:
-        def __init__(self, data, header, subscriptions):
+        def __init__(self, data, header, subscriptions, ulog_object):
             msg_id, = struct.unpack('<H', data[:2])
             if msg_id in subscriptions:
                 subscription = subscriptions[msg_id]
@@ -224,6 +224,12 @@ class ULog:
                 # TODO: the timestamp can have another size than uint64
                 self.timestamp, = struct.unpack('<Q', data[t_off+2:t_off+10])
             else:
+                if not msg_id in ulog_object.filtered_message_ids:
+                    # this is an error, but make it non-fatal
+                    if not msg_id in ulog_object.missing_message_ids:
+                        ulog_object.missing_message_ids.add(msg_id)
+                        print('Warning: no subscription found for message id {:}. Continuing,'
+                            ' but file is most likely corrupt'.format(msg_id))
                 self.timestamp = 0
 
 
@@ -252,6 +258,8 @@ class ULog:
         """ The following are internal representations only """
 
         self.subscriptions = {} # dict of key=msg_id, value=MessageAddLogged
+        self.filtered_message_ids = set() # MessageAddLogged id's that are filtered
+        self.missing_message_ids = set() # MessageAddLogged id's that could not be found
 
 
         self.loadFile(file_name, message_name_filter_list)
@@ -321,12 +329,14 @@ class ULog:
                     if message_name_filter_list == None or \
                         msg_add_logged.message_name in message_name_filter_list:
                         self.subscriptions[msg_add_logged.msg_id] = msg_add_logged
+                    else:
+                        self.filtered_message_ids.add(msg_add_logged.msg_id)
                 elif (header.msg_type == self.MSG_TYPE_LOGGING):
                     msg_logging = self.MessageLogging(data, header)
                     self.logged_messages.append(msg_logging)
                 elif (header.msg_type == self.MSG_TYPE_DATA):
                     msg_data = self.MessageData(data, header,
-                            self.subscriptions)
+                            self.subscriptions, self)
                     if msg_data.timestamp != 0:
                         self.last_timestamp = msg_data.timestamp
                 elif (header.msg_type == self.MSG_TYPE_DROPOUT):
