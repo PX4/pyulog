@@ -52,8 +52,12 @@ class PX4ULog:
     def get_estimator(self):
         """return the configured estimator as string from initial parameters"""
 
-        mav_type = self.ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
-        return {0: 'INAV', 1: 'LPE', 2: 'EKF2'}.get(mav_type, 'unknown')
+        mav_type = self.ulog.initial_parameters.get('MAV_TYPE', None)
+        if mav_type == 1: # fixed wing always uses EKF2
+            return 'EKF2'
+
+        mc_est_group = self.ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
+        return {0: 'INAV', 1: 'LPE', 2: 'EKF2'}.get(mc_est_group, 'unknown')
 
 
     def add_roll_pitch_yaw(self):
