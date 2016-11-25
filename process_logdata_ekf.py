@@ -349,8 +349,60 @@ plt.text(innov_0_min_time, innov_0_min, 'min='+s_innov_0_min, fontsize=12, horiz
 
 pp.savefig()
 
-# optical flow innovations
+# air data innovations
 plt.figure(6,figsize=(20,13))
+
+# generate airspeed metadata
+airspeed_innov_max_arg = np.argmax(ekf2_innovations['airspeed_innov'])
+airspeed_innov_max_time = innov_time[airspeed_innov_max_arg]
+airspeed_innov_max = np.amax(ekf2_innovations['airspeed_innov'])
+
+airspeed_innov_min_arg = np.argmin(ekf2_innovations['airspeed_innov'])
+airspeed_innov_min_time = innov_time[airspeed_innov_min_arg]
+airspeed_innov_min = np.amin(ekf2_innovations['airspeed_innov'])
+
+s_airspeed_innov_max = str(round(airspeed_innov_max,3))
+s_airspeed_innov_min = str(round(airspeed_innov_min,3))
+
+# generate sideslip metadata
+beta_innov_max_arg = np.argmax(ekf2_innovations['beta_innov'])
+beta_innov_max_time = innov_time[beta_innov_max_arg]
+beta_innov_max = np.amax(ekf2_innovations['beta_innov'])
+
+beta_innov_min_arg = np.argmin(ekf2_innovations['beta_innov'])
+beta_innov_min_time = innov_time[beta_innov_min_arg]
+beta_innov_min = np.amin(ekf2_innovations['beta_innov'])
+
+s_beta_innov_max = str(round(beta_innov_max,3))
+s_beta_innov_min = str(round(beta_innov_min,3))
+
+# draw plots
+plt.subplot(2,1,1)
+plt.plot(1e-6*ekf2_innovations['timestamp'],ekf2_innovations['airspeed_innov'],'b')
+plt.plot(1e-6*ekf2_innovations['timestamp'],np.sqrt(ekf2_innovations['airspeed_innov_var']),'r')
+plt.plot(1e-6*ekf2_innovations['timestamp'],-np.sqrt(ekf2_innovations['airspeed_innov_var']),'r')
+plt.title('True Airspeed Innovations')
+plt.ylabel('innovation (m/sec)')
+plt.xlabel('time (sec)')
+plt.grid()
+plt.text(airspeed_innov_max_time, airspeed_innov_max, 'max='+s_airspeed_innov_max, fontsize=12, horizontalalignment='left', verticalalignment='bottom')
+plt.text(airspeed_innov_min_time, airspeed_innov_min, 'min='+s_airspeed_innov_min, fontsize=12, horizontalalignment='left', verticalalignment='top')
+
+plt.subplot(2,1,2)
+plt.plot(1e-6*ekf2_innovations['timestamp'],ekf2_innovations['beta_innov'],'b')
+plt.plot(1e-6*ekf2_innovations['timestamp'],np.sqrt(ekf2_innovations['beta_innov_var']),'r')
+plt.plot(1e-6*ekf2_innovations['timestamp'],-np.sqrt(ekf2_innovations['beta_innov_var']),'r')
+plt.title('Sythetic Sideslip Innovations')
+plt.ylabel('innovation (rad)')
+plt.xlabel('time (sec)')
+plt.grid()
+plt.text(beta_innov_max_time, beta_innov_max, 'max='+s_beta_innov_max, fontsize=12, horizontalalignment='left', verticalalignment='bottom')
+plt.text(beta_innov_min_time, beta_innov_min, 'min='+s_beta_innov_min, fontsize=12, horizontalalignment='left', verticalalignment='top')
+
+pp.savefig()
+
+# optical flow innovations
+plt.figure(7,figsize=(20,13))
 
 # generate X axis metadata
 flow_innov_x_max_arg = np.argmax(ekf2_innovations['flow_innov[0]'])
@@ -444,7 +496,7 @@ hagl_test_max = np.amax(estimator_status['hagl_test_ratio'])
 hagl_test_mean = np.mean(estimator_status['hagl_test_ratio'])
 
 # plot normalised innovation test levels
-plt.figure(7,figsize=(20,13))
+plt.figure(8,figsize=(20,13))
 
 if tas_test_max == 0.0:
     n_plots = 3
@@ -585,7 +637,7 @@ using_magdecl_time_arg = np.argmax(np.diff(using_magdecl))
 using_magdecl_time = status_time[using_magdecl_time_arg]
 
 # control mode summary plot A
-plt.figure(8,figsize=(20,13))
+plt.figure(9,figsize=(20,13))
 
 # subplot for alignment completion
 plt.subplot(4,1,1)
@@ -683,7 +735,7 @@ elif np.amax(using_magdecl) > 0:
 pp.savefig()
 
 # control mode summary plot B
-plt.figure(9,figsize=(20,13))
+plt.figure(10,figsize=(20,13))
 
 # subplot for airborne status
 plt.subplot(2,1,1)
@@ -717,7 +769,7 @@ plt.grid()
 pp.savefig()
 
 # innovation_check_flags summary
-plt.figure(10,figsize=(20,13))
+plt.figure(11,figsize=(20,13))
 # 0 - true if velocity observations have been rejected
 # 1 - true if horizontal position observations have been rejected
 # 2 - true if true if vertical position observations have been rejected
@@ -787,7 +839,7 @@ plt.grid()
 pp.savefig()
 
 # gps_check_fail_flags summary
-plt.figure(11,figsize=(20,13))
+plt.figure(12,figsize=(20,13))
 # 0 : minimum required sat count fail
 # 1 : minimum required GDoP fail
 # 2 : maximum allowed horizontal position error fail
@@ -834,7 +886,7 @@ plt.grid()
 pp.savefig()
 
 # filter reported accuracy
-plt.figure(12,figsize=(20,13))
+plt.figure(13,figsize=(20,13))
 plt.title('Reported Accuracy')
 plt.plot(status_time,estimator_status['pos_horiz_accuracy'],'b',label='horizontal')
 plt.plot(status_time,estimator_status['pos_vert_accuracy'],'r',label='vertical')
@@ -846,7 +898,7 @@ plt.grid()
 pp.savefig()
 
 # Plot the EKF IMU vibration metrics
-plt.figure(13,figsize=(20,13))
+plt.figure(14,figsize=(20,13))
 
 vibe_coning_max_arg = np.argmax(estimator_status['vibe[0]'])
 vibe_coning_max_time = status_time[vibe_coning_max_arg]
@@ -883,7 +935,7 @@ plt.text(vibe_hf_dvel_max_time, vibe_hf_dvel_max, 'max='+str(round(vibe_hf_dvel_
 pp.savefig()
 
 # Plot the EKF output observer tracking errors
-plt.figure(14,figsize=(20,13))
+plt.figure(15,figsize=(20,13))
 
 ang_track_err_max_arg = np.argmax(ekf2_innovations['output_tracking_error[0]'])
 ang_track_err_max_time = innov_time[ang_track_err_max_arg]
