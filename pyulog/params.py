@@ -22,7 +22,10 @@ def main():
                        help='Use delimiter in CSV (default is \',\')', default=',')
 
     parser.add_argument('-i', '--initial', dest='initial', action='store_true',
-                       help='Only extract initial parameters', default=False)
+                        help='Only extract initial parameters', default=False)
+
+    parser.add_argument('-o', '--octave', dest='octave', action='store_true',
+                        help='Use Octave format', default=False)
 
     parser.add_argument('output_filename', metavar='params.txt',
             type=argparse.FileType('w'), nargs='?',
@@ -38,16 +41,40 @@ def main():
     delimiter = args.delimiter
     output_file = args.output_filename
 
+    if not args.octave:
+        for param_key in param_keys:
+            output_file.write(param_key)
+            output_file.write(delimiter)
+            output_file.write(str(ulog.initial_parameters[param_key]))
+            if not args.initial:
+                for t, name, value in ulog.changed_parameters:
+                    if name == param_key:
+                        output_file.write(delimiter)
+                        output_file.write(str(value))
+            output_file.write('\n')
 
-    for param_key in param_keys:
-        output_file.write(param_key)
-        output_file.write(delimiter)
-        output_file.write(str(ulog.initial_parameters[param_key]))
-        if not args.initial:
-            for t, name, value in ulog.changed_parameters:
-                if name == param_key:
-                    output_file.write(delimiter)
-                    output_file.write(str(value))
-        output_file.write('\n')
+    else:
 
+        for param_key in param_keys:
+            output_file.write('# name ')
+            output_file.write(param_key)
+            values = [ulog.initial_parameters[param_key]]
 
+            if not args.initial:
+                for t, name, value in ulog.changed_parameters:
+                    if name == param_key:
+                        values += [value]
+
+            if len(values) > 1:
+                output_file.write('\n# type: matrix\n')
+                output_file.write('\n# rows: 1\n')
+                output_file.write('\n# columns: ')
+                output_file.write(str(len(values)) + '\n')
+                for i in range(0, len(values)):
+                    output_file.write(str(values[i]) + ' ')
+
+            else:
+                output_file.write('\n# type: scalar\n')
+                output_file.write(str(values[0]))
+
+            output_file.write('\n')
