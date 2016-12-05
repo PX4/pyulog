@@ -67,8 +67,8 @@ def main():
 
             if len(values) > 1:
                 output_file.write('\n# type: matrix\n')
-                output_file.write('\n# rows: 1\n')
-                output_file.write('\n# columns: ')
+                output_file.write('# rows: 1\n')
+                output_file.write('# columns: ')
                 output_file.write(str(len(values)) + '\n')
                 for i in range(0, len(values)):
                     output_file.write(str(values[i]) + ' ')
