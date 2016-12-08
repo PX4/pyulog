@@ -25,8 +25,8 @@ python setup.py build install
 
 #### Development ####
 
-To install the code in a format so that it can be easily
-edited use the following command:
+To install the code in a format so that it can be easily edited use the
+following command (this will install the package as a link to the repo):
 
 ```bash
 pip install -e .
