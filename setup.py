@@ -8,8 +8,8 @@ This module allows you to do control and statistical analysis for the PX4.
 from __future__ import print_function
 
 MAJOR = 0
-MINOR = 0
-MICRO = 2
+MINOR = 1
+MICRO = 0
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
