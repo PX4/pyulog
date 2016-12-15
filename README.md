@@ -21,6 +21,7 @@ python setup.py build install
 - `ulog_messages`: display logged messages from an ULog file.
 - `ulog_params`: extract parameters from an ULog file.
 - `ulog2csv`: convert ULog to CSV files.
+- `ulog2kml`: convert ULog to KML files.
 
 
 #### Development ####

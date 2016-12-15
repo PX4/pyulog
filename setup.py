@@ -139,7 +139,7 @@ def setup_package():
         license='BSD 3-Clause',
         classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
         platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
-        install_requires=['numpy'],
+        install_requires=['numpy', 'simplekml'],
         tests_require=['nose'],
         test_suite='nose.collector',
         entry_points = {
@@ -149,6 +149,7 @@ def setup_package():
                 'ulog_messages=pyulog.messages:main',
                 'ulog_params=pyulog.params:main',
                 'ulog2csv=pyulog.ulog2csv:main',
+                'ulog2kml=pyulog.ulog2kml:main',
             ],
         },
         packages=find_packages(),
