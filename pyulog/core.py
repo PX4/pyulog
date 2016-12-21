@@ -353,3 +353,35 @@ class ULog:
             if len(value.buffer) > 0: # only add if we have data
                 data_item = ULog.Data(value)
                 self.data_list.append(data_item)
+
+
+    def get_version_info(self, key_name='ver_sw_release'):
+        """
+        get the (major, minor, patch, type) version information as tuple.
+        Returns None if not found
+        definition of type is:
+         >= 0: development
+         >= 64: alpha version
+         >= 128: beta version
+         >= 192: RC version
+         == 255: release version
+        """
+        if key_name in self.msg_info_dict:
+            val = self.msg_info_dict[key_name]
+            return ((val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff)
+        return None
+
+    def get_version_info_str(self, key_name='ver_sw_release'):
+        """
+        get version information in the form 'v1.2.3 (RC)', or None if version
+        tag either not found or it's a development version
+        """
+        version = self.get_version_info(key_name)
+        if not version is None and version[3] >= 64:
+            type_str = ''
+            if version[3] < 128: type_str = ' (alpha)'
+            elif version[3] < 192: type_str = ' (beta)'
+            elif version[3] < 255: type_str = ' (RC)'
+            return 'v{}.{}.{}{}'.format(version[0], version[1], version[2], type_str)
+        return None
+

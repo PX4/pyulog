@@ -40,6 +40,9 @@ def main():
                     max(dropout_durations),
                     int(sum(dropout_durations)/len(dropout_durations))))
 
+    version = ulog.get_version_info_str()
+    if not version is None:
+        print('SW Version: {}'.format(version))
 
     print("Info Messages:")
     for k in ulog.msg_info_dict:
