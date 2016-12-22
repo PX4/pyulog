@@ -57,7 +57,8 @@ class PX4ULog:
             return 'EKF2'
 
         mc_est_group = self.ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
-        return {0: 'INAV', 1: 'LPE', 2: 'EKF2'}.get(mc_est_group, 'unknown')
+        return {0: 'INAV', 1: 'LPE', 2: 'EKF2', 3: 'IEKF'}.get(mc_est_group,
+                'unknown ({})'.format(mc_est_group))
 
 
     def add_roll_pitch_yaw(self):
