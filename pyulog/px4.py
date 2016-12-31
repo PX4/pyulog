@@ -65,9 +65,11 @@ class PX4ULog:
         """ convenience method to add the fields 'roll', 'pitch', 'yaw' to the
         loaded data using the quaternion fields (does not update field_data).
 
-        Messages are: 'vehicle_attitude.q' and 'vehicle_attitude_setpoint.q_d' """
+        Messages are: 'vehicle_attitude.q' and 'vehicle_attitude_setpoint.q_d'
+        and 'vehicle_attitude_groundtruth.q' """
 
         self._add_roll_pitch_yaw_to_message('vehicle_attitude')
+        self._add_roll_pitch_yaw_to_message('vehicle_attitude_groundtruth')
         self._add_roll_pitch_yaw_to_message('vehicle_attitude_setpoint', '_d')
 
 
