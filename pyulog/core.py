@@ -38,19 +38,19 @@ class ULog:
     MSG_TYPE_LOGGING = ord('L')
 
     UNPACK_TYPES = {
-            'int8_t'   : [ 'b', 1, np.int8 ],
-            'uint8_t'  : [ 'B', 1, np.uint8 ],
-            'int16_t'  : [ 'h', 2, np.int16 ],
-            'uint16_t' : [ 'H', 2, np.uint16 ],
-            'int32_t'  : [ 'i', 4, np.int32 ],
-            'uint32_t' : [ 'I', 4, np.uint32 ],
-            'int64_t'  : [ 'q', 8, np.int64 ],
-            'uint64_t' : [ 'Q', 8, np.uint64 ],
-            'float'    : [ 'f', 4, np.float32 ],
-            'double'   : [ 'd', 8, np.float64 ],
-            'bool'     : [ '?', 1, np.int8 ],
-            'char'     : [ 'c', 1, np.int8 ]
-            }
+        'int8_t':   ['b', 1, np.int8],
+        'uint8_t':  ['B', 1, np.uint8],
+        'int16_t':  ['h', 2, np.int16],
+        'uint16_t': ['H', 2, np.uint16],
+        'int32_t':  ['i', 4, np.int32],
+        'uint32_t': ['I', 4, np.uint32],
+        'int64_t':  ['q', 8, np.int64],
+        'uint64_t': ['Q', 8, np.uint64],
+        'float':    ['f', 4, np.float32],
+        'double':   ['d', 8, np.float64],
+        'bool':     ['?', 1, np.int8],
+        'char':     ['c', 1, np.int8]
+        }
 
     # pre-init unpack structs for quicker use
     _unpack_ushort_byte = struct.Struct('<HB').unpack
@@ -67,7 +67,7 @@ class ULog:
 
             # get data as numpy.ndarray
             d = np.frombuffer(message_add_logged_obj.buffer,
-                    dtype=message_add_logged_obj.dtype)
+                              dtype=message_add_logged_obj.dtype)
             # convert into dict of np.array (which is easier to handle)
             self.data = {}
             for name in d.dtype.names:
@@ -99,7 +99,7 @@ class ULog:
             self.msg_type = 0
 
         def initialize(self, data):
-            self.msg_size,self.msg_type = ULog._unpack_ushort_byte(data)
+            self.msg_size, self.msg_type = ULog._unpack_ushort_byte(data)
 
     class MessageInfo:
         def __init__(self, data, header):
@@ -108,9 +108,9 @@ class ULog:
             type_key_split = type_key.split(' ')
             self.type = type_key_split[0]
             self.key = type_key_split[1]
-            if (self.type.startswith('char[')): # it's a string
+            if self.type.startswith('char['): # it's a string
                 self.value = parseString(data[1+key_len:])
-            elif (self.type in ULog.UNPACK_TYPES):
+            elif self.type in ULog.UNPACK_TYPES:
                 unpack_type = ULog.UNPACK_TYPES[self.type]
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
             else: # probably an array (or non-basic type)
@@ -131,7 +131,7 @@ class ULog:
             type_str = field_str_split[0]
             name_str = field_str_split[1]
             a_pos = type_str.find('[')
-            if (a_pos == -1):
+            if a_pos == -1:
                 array_size = 1
                 type_name = type_str
             else:
@@ -139,7 +139,7 @@ class ULog:
                 array_size = int(type_str[a_pos+1:b_pos])
                 type_name = type_str[:a_pos]
             return type_name, array_size, name_str
-            
+
     class MessageLogging:
         def __init__(self, data, header):
             self.log_level, = struct.unpack('<B', data[0:1])
@@ -197,7 +197,7 @@ class ULog:
 
             # remove padding fields at the end
             while (len(self.field_data) > 0 and
-                    self.field_data[-1].field_name.startswith('_padding')):
+                   self.field_data[-1].field_name.startswith('_padding')):
                 self.field_data.pop()
 
         def parse_nested_type(self, prefix_str, type_name, message_formats):
@@ -205,22 +205,22 @@ class ULog:
             message_format = message_formats[type_name]
             for (type_name, array_size, field_name) in message_format.fields:
                 if type_name in ULog.UNPACK_TYPES:
-                    if (array_size > 1):
+                    if array_size > 1:
                         for i in range(array_size):
                             self.field_data.append(ULog.FieldData(
                                 prefix_str+field_name+'['+str(i)+']', type_name))
                     else:
                         self.field_data.append(ULog.FieldData(prefix_str+field_name, type_name))
-                    if (prefix_str+field_name == 'timestamp'):
+                    if prefix_str+field_name == 'timestamp':
                         self.timestamp_idx = len(self.field_data) - 1
                 else: # nested type
-                    if (array_size > 1):
+                    if array_size > 1:
                         for i in range(array_size):
                             self.parse_nested_type(prefix_str+field_name+'['+str(i)+'].',
-                                    type_name, message_formats)
+                                                   type_name, message_formats)
                     else:
                         self.parse_nested_type(prefix_str+field_name+'.',
-                                type_name, message_formats)
+                                               type_name, message_formats)
 
     class MessageData:
         def __init__(self):
@@ -241,7 +241,7 @@ class ULog:
                     if not msg_id in ulog_object.missing_message_ids:
                         ulog_object.missing_message_ids.add(msg_id)
                         print('Warning: no subscription found for message id {:}. Continuing,'
-                            ' but file is most likely corrupt'.format(msg_id))
+                              ' but file is most likely corrupt'.format(msg_id))
                 self.timestamp = 0
 
 
@@ -260,7 +260,8 @@ class ULog:
         self.last_timestamp = 0 # timestam of last message
         self.msg_info_dict = {} # dict of all information messages
         self.initial_parameters = {} # dict of all initially set parameters (key=param name)
-        self.changed_parameters = [] # list of all changed parameters (tuple of (timestamp, name, value))
+        self.changed_parameters = [] # list of all changed parameters (tuple of
+                                     # (timestamp, name, value))
         self.message_formats = {} # dict with key=format name, value = MessageFormat object
         self.logged_messages = [] # array of MessageLogging objects
         self.dropouts = [] # list of MessageDropout objects
@@ -290,11 +291,11 @@ class ULog:
 
     def read_file_header(self):
         header_data = self.file_handle.read(16)
-        if (len(header_data)) != 16:
+        if len(header_data) != 16:
             raise Exception("Invalid file format (Header too short)")
-        if (header_data[:7] != self.HEADER_BYTES):
+        if header_data[:7] != self.HEADER_BYTES:
             raise Exception("Invalid file format (Failed to parse header)")
-        if (header_data[7:8] != b'\x00'):
+        if header_data[7:8] != b'\x00':
             print("Warning: unknown file version. Will attempt to read it anyway")
 
         # read timestamp
@@ -302,23 +303,23 @@ class ULog:
 
     def read_file_definitions(self):
         header = self.MessageHeader()
-        while(True):
+        while True:
             data = self.file_handle.read(3)
             if not data:
                 break
             header.initialize(data)
             data = self.file_handle.read(header.msg_size)
-            if (header.msg_type == self.MSG_TYPE_INFO):
+            if header.msg_type == self.MSG_TYPE_INFO:
                 msg_info = self.MessageInfo(data, header)
                 self.msg_info_dict[msg_info.key] = msg_info.value
-            elif (header.msg_type == self.MSG_TYPE_FORMAT):
+            elif header.msg_type == self.MSG_TYPE_FORMAT:
                 msg_format = self.MessageFormat(data, header)
                 self.message_formats[msg_format.name] = msg_format
-            elif (header.msg_type == self.MSG_TYPE_PARAMETER):
+            elif header.msg_type == self.MSG_TYPE_PARAMETER:
                 msg_info = self.MessageInfo(data, header)
                 self.initial_parameters[msg_info.key] = msg_info.value
             elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
-                    header.msg_type == self.MSG_TYPE_LOGGING):
+                  header.msg_type == self.MSG_TYPE_LOGGING):
                 self.file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
             #else: skip
@@ -329,35 +330,35 @@ class ULog:
             header = self.MessageHeader()
             msg_data = self.MessageData()
 
-            while(True):
+            while True:
                 data = self.file_handle.read(3)
                 header.initialize(data)
                 data = self.file_handle.read(header.msg_size)
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
 
-                if (header.msg_type == self.MSG_TYPE_PARAMETER):
+                if header.msg_type == self.MSG_TYPE_PARAMETER:
                     msg_info = self.MessageInfo(data, header)
                     self.changed_parameters.append((self.last_timestamp,
-                        msg_info.key, msg_info.value))
-                elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG):
+                                                    msg_info.key, msg_info.value))
+                elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
                     msg_add_logged = self.MessageAddLogged(data, header,
-                            self.message_formats)
-                    if message_name_filter_list == None or \
-                        msg_add_logged.message_name in message_name_filter_list:
+                                                           self.message_formats)
+                    if (message_name_filter_list == None or
+                            msg_add_logged.message_name in message_name_filter_list):
                         self.subscriptions[msg_add_logged.msg_id] = msg_add_logged
                     else:
                         self.filtered_message_ids.add(msg_add_logged.msg_id)
-                elif (header.msg_type == self.MSG_TYPE_LOGGING):
+                elif header.msg_type == self.MSG_TYPE_LOGGING:
                     msg_logging = self.MessageLogging(data, header)
                     self.logged_messages.append(msg_logging)
-                elif (header.msg_type == self.MSG_TYPE_DATA):
+                elif header.msg_type == self.MSG_TYPE_DATA:
                     msg_data.initialize(data, header, self.subscriptions, self)
                     if msg_data.timestamp != 0:
                         self.last_timestamp = msg_data.timestamp
-                elif (header.msg_type == self.MSG_TYPE_DROPOUT):
+                elif header.msg_type == self.MSG_TYPE_DROPOUT:
                     msg_dropout = self.MessageDropout(data, header,
-                            self.last_timestamp)
+                                                      self.last_timestamp)
                     self.dropouts.append(msg_dropout)
                 #else: skip
         except struct.error:
