@@ -44,3 +44,10 @@ or
 ```bash
 python setup.py test
 ```
+
+#### Code Checking ####
+
+```bash
+pylint pyulog/*.py
+```
+
