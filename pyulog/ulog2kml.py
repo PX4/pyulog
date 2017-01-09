@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 """
 Convert a ULog file into a KML file (positioning information)
 """
@@ -7,13 +6,13 @@ Convert a ULog file into a KML file (positioning information)
 from __future__ import print_function
 
 import argparse
-import os
 import simplekml
 
 from .core import ULog
 
 
-#pylint: disable=too-many-locals, invalid-name, consider-using-enumerate
+#pylint: disable=too-many-locals, invalid-name, consider-using-enumerate, too-many-arguments
+#pylint: disable=unused-variable
 
 
 def main():
@@ -23,15 +22,15 @@ def main():
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
     parser.add_argument('-o', '--output', dest='output_filename',
-        help="output filename", default='track.kml')
+                        help="output filename", default='track.kml')
     parser.add_argument('--topic', dest='topic_name',
-        help="topic name with position data (default=vehicle_gps_position)",
-        default='vehicle_gps_position')
+                        help="topic name with position data (default=vehicle_gps_position)",
+                        default='vehicle_gps_position')
 
     args = parser.parse_args()
 
     convert_ulog2kml(args.filename, args.output_filename,
-            position_topic_name=args.topic_name)
+                     position_topic_name=args.topic_name)
 
     # alternative example call:
 #    convert_ulog2kml(args.filename, 'test.kml', ['vehicle_global_position',
@@ -42,16 +41,16 @@ def _kml_default_colors(x):
     """ flight mode to color conversion """
     x = max([x, 0])
     colors_arr = [simplekml.Color.red, simplekml.Color.green, simplekml.Color.blue,
-            simplekml.Color.violet, simplekml.Color.yellow, simplekml.Color.orange,
-            simplekml.Color.burlywood, simplekml.Color.azure, simplekml.Color.lightblue,
-            simplekml.Color.lawngreen, simplekml.Color.indianred, simplekml.Color.hotpink]
+                  simplekml.Color.violet, simplekml.Color.yellow, simplekml.Color.orange,
+                  simplekml.Color.burlywood, simplekml.Color.azure, simplekml.Color.lightblue,
+                  simplekml.Color.lawngreen, simplekml.Color.indianred, simplekml.Color.hotpink]
     return colors_arr[x]
 
 
 
-def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name =
-        'vehicle_gps_position', colors = _kml_default_colors, altitude_offset =
-        0, minimum_interval_s = 0.1, style = None):
+def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
+                     'vehicle_gps_position', colors=_kml_default_colors, altitude_offset=0,
+                     minimum_interval_s=0.1, style=None):
     """
     Coverts and ULog file to a CSV file.
 
@@ -73,9 +72,9 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name =
     """
 
     default_style = {
-            'extrude': False,
-            'line_width': 3
-            }
+        'extrude': False,
+        'line_width': 3
+        }
 
     used_style = default_style
     if style is not None:
@@ -92,30 +91,32 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name =
 
     # get flight modes
     try:
-        cur_dataset = [ elem for elem in ulog.data_list
-                if elem.name == 'commander_state' and elem.multi_id == 0][0]
+        cur_dataset = [elem for elem in ulog.data_list
+                       if elem.name == 'commander_state' and elem.multi_id == 0][0]
         flight_mode_changes = cur_dataset.list_value_changes('main_state')
         flight_mode_changes.append((ulog.last_timestamp, -1))
-    except (KeyError,IndexError) as error:
+    except (KeyError, IndexError) as error:
         flight_mode_changes = []
 
     # add the graphs
     for topic, cur_colors in zip(position_topic_name, colors):
         _kml_add_position_data(kml, ulog, topic, cur_colors, used_style,
-                altitude_offset, minimum_interval_s, flight_mode_changes)
+                               altitude_offset, minimum_interval_s, flight_mode_changes)
 
     kml.save(output_file_name)
 
 
 def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
-        altitude_offset = 0, minimum_interval_s = 0.1,
-        flight_mode_changes = []):
+                           altitude_offset=0, minimum_interval_s=0.1,
+                           flight_mode_changes=None):
 
     data = ulog.data_list
     topic_instance = 0
+    if flight_mode_changes is None:
+        flight_mode_changes = []
 
-    cur_dataset = [ elem for elem in data
-                if elem.name == position_topic_name and elem.multi_id == topic_instance]
+    cur_dataset = [elem for elem in data
+                   if elem.name == position_topic_name and elem.multi_id == topic_instance]
     if len(cur_dataset) == 0:
         raise Exception(position_topic_name+' not found in data')
 
@@ -149,6 +150,7 @@ def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
 
 
     def create_linestring():
+        """ create a new kml linestring and set rendering options """
         name = position_topic_name + ":" + str(current_flight_mode)
         new_linestring = kml.newlinestring(name=name, altitudemode='absolute')
 
@@ -167,7 +169,7 @@ def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
         cur_t = pos_t[i]
 
         if (cur_t - last_t)/1e6 > minimum_interval_s: # assume timestamp is in [us]
-            pos_data = [ pos_lon[i], pos_lat[i], pos_alt[i] + altitude_offset]
+            pos_data = [pos_lon[i], pos_lat[i], pos_alt[i] + altitude_offset]
             current_kml_linestring.coords.addcoordinates([pos_data])
             last_t = cur_t
 

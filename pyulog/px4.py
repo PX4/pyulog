@@ -1,3 +1,6 @@
+"""
+PX4-specific ULog helper
+"""
 from __future__ import print_function
 
 __author__ = "Beat Kueng"
@@ -5,7 +8,7 @@ __author__ = "Beat Kueng"
 import numpy as np
 
 
-class PX4ULog:
+class PX4ULog(object):
     """
     This class contains PX4-specific ULog things (field names, etc.)
     """
@@ -57,8 +60,10 @@ class PX4ULog:
             return 'EKF2'
 
         mc_est_group = self.ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
-        return {0: 'INAV', 1: 'LPE', 2: 'EKF2', 3: 'IEKF'}.get(mc_est_group,
-                'unknown ({})'.format(mc_est_group))
+        return {0: 'INAV',
+                1: 'LPE',
+                2: 'EKF2',
+                3: 'IEKF'}.get(mc_est_group, 'unknown ({})'.format(mc_est_group))
 
 
     def add_roll_pitch_yaw(self):
@@ -73,16 +78,16 @@ class PX4ULog:
         self._add_roll_pitch_yaw_to_message('vehicle_attitude_setpoint', '_d')
 
 
-    def _add_roll_pitch_yaw_to_message(self, message_name, field_name_suffix = ''):
+    def _add_roll_pitch_yaw_to_message(self, message_name, field_name_suffix=''):
 
-        message_data_all = [ elem for elem in self.ulog.data_list if elem.name == message_name]
+        message_data_all = [elem for elem in self.ulog.data_list if elem.name == message_name]
         for message_data in message_data_all:
-            q=[message_data.data['q'+field_name_suffix+'['+str(i)+']'] for i in range(4)]
-            roll=np.arctan2(2.0 * (q[0] * q[1] + q[2] * q[3]),
-                    1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]))
+            q = [message_data.data['q'+field_name_suffix+'['+str(i)+']'] for i in range(4)]
+            roll = np.arctan2(2.0 * (q[0] * q[1] + q[2] * q[3]),
+                              1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]))
             pitch = np.arcsin(2.0 * (q[0] * q[2] - q[3] * q[1]))
             yaw = np.arctan2(2.0 * (q[0] * q[3] + q[1] * q[2]),
-                    1.0 - 2.0 * (q[2] * q[2] + q[3] * q[3]))
+                             1.0 - 2.0 * (q[2] * q[2] + q[3] * q[3]))
             message_data.data['roll'+field_name_suffix] = roll
             message_data.data['pitch'+field_name_suffix] = pitch
             message_data.data['yaw'+field_name_suffix] = yaw

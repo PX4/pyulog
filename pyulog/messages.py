@@ -1,15 +1,14 @@
 #! /usr/bin/env python
+"""
+Display logged messages from an ULog file
+"""
 
 from __future__ import print_function
 
 import argparse
-import os
 
 from .core import ULog
-
-"""
-Display logged messages from an ULog file
-"""
+#pylint: disable=invalid-name
 
 def main():
     """Commande line interface"""

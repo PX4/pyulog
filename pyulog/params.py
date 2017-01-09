@@ -1,16 +1,15 @@
 #! /usr/bin/env python
+"""
+Extract parameters from an ULog file
+"""
 
 from __future__ import print_function
 
 import argparse
-import os
 import sys
 
 from .core import ULog
-
-"""
-Extract parameters from an ULog file
-"""
+#pylint: disable=unused-variable, too-many-branches
 
 def main():
     """Commande line interface"""
@@ -19,7 +18,7 @@ def main():
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
     parser.add_argument('-d', '--delimiter', dest='delimiter', action='store',
-                       help='Use delimiter in CSV (default is \',\')', default=',')
+                        help='Use delimiter in CSV (default is \',\')', default=',')
 
     parser.add_argument('-i', '--initial', dest='initial', action='store_true',
                         help='Only extract initial parameters', default=False)
@@ -28,14 +27,13 @@ def main():
                         help='Use Octave format', default=False)
 
     parser.add_argument('output_filename', metavar='params.txt',
-            type=argparse.FileType('w'), nargs='?',
-            help='Output filename (default=stdout)', default=sys.stdout)
+                        type=argparse.FileType('w'), nargs='?',
+                        help='Output filename (default=stdout)', default=sys.stdout)
 
     args = parser.parse_args()
     ulog_file_name = args.filename
 
     ulog = ULog(ulog_file_name, [])
-    data = ulog.data_list
 
     param_keys = sorted(ulog.initial_parameters.keys())
     delimiter = args.delimiter

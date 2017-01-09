@@ -96,6 +96,7 @@ def get_version_info():
 def write_version_py(filename='pyulog/version.py'):
     cnt = """
 # THIS FILE IS GENERATED FROM SETUP.PY
+#pylint: skip-file
 short_version = '%(version)s'
 version = '%(version)s'
 full_version = '%(full_version)s'

@@ -1,29 +1,33 @@
+""" Main Module to load and parse an ULog file """
 
 from __future__ import print_function
 
+import struct
+import sys
 import numpy as np
-import struct, sys
+#pylint: disable=too-many-instance-attributes, unused-argument, missing-docstring
+#pylint: disable=protected-access, too-many-branches
 
 __author__ = "Beat Kueng"
 
 
 # check python version
 if sys.hexversion >= 0x030000F0:
-    runningPython3 = True
-    def parseString(cstr):
+    RUNNING_PYTHON3 = True
+    def _parse_string(cstr):
         return str(cstr, 'ascii')
 else:
-    runningPython3 = False
-    def parseString(cstr):
+    RUNNING_PYTHON3 = False
+    def _parse_string(cstr):
         return str(cstr)
 
 
-class ULog:
+class ULog(object):
     """
     This class parses an ulog file
     """
 
-    """ constants """
+    ## constants ##
     HEADER_BYTES = b'\x55\x4c\x6f\x67\x01\x12\x35'
 
     # message types
@@ -58,7 +62,9 @@ class ULog:
     _unpack_uint64 = struct.Struct('<Q').unpack
 
 
-    class Data:
+    class Data(object):
+        """ contains the final topic data for a single topic and instance """
+
         def __init__(self, message_add_logged_obj):
             self.multi_id = message_add_logged_obj.multi_id
             self.name = message_add_logged_obj.message_name
@@ -66,12 +72,12 @@ class ULog:
             self.timestamp_idx = message_add_logged_obj.timestamp_idx
 
             # get data as numpy.ndarray
-            d = np.frombuffer(message_add_logged_obj.buffer,
-                              dtype=message_add_logged_obj.dtype)
+            np_array = np.frombuffer(message_add_logged_obj.buffer,
+                                     dtype=message_add_logged_obj.dtype)
             # convert into dict of np.array (which is easier to handle)
             self.data = {}
-            for name in d.dtype.names:
-                self.data[name] = d[name]
+            for name in np_array.dtype.names:
+                self.data[name] = np_array[name]
 
         def list_value_changes(self, field_name):
             """ get a list of (timestamp, value) tuples, whenever the value
@@ -91,9 +97,11 @@ class ULog:
 
 
 
-    """ Representations of the messages from the log file """
+    ## Representations of the messages from the log file ##
 
-    class MessageHeader:
+    class MessageHeader(object):
+        """ 3 bytes ULog message header """
+
         def __init__(self):
             self.msg_size = 0
             self.msg_type = 0
@@ -101,24 +109,28 @@ class ULog:
         def initialize(self, data):
             self.msg_size, self.msg_type = ULog._unpack_ushort_byte(data)
 
-    class MessageInfo:
+    class MessageInfo(object):
+        """ ULog info message representation """
+
         def __init__(self, data, header):
             key_len, = struct.unpack('<B', data[0:1])
-            type_key = parseString(data[1:1+key_len])
+            type_key = _parse_string(data[1:1+key_len])
             type_key_split = type_key.split(' ')
             self.type = type_key_split[0]
             self.key = type_key_split[1]
             if self.type.startswith('char['): # it's a string
-                self.value = parseString(data[1+key_len:])
+                self.value = _parse_string(data[1+key_len:])
             elif self.type in ULog.UNPACK_TYPES:
                 unpack_type = ULog.UNPACK_TYPES[self.type]
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
             else: # probably an array (or non-basic type)
                 self.value = data[1+key_len:]
 
-    class MessageFormat:
+    class MessageFormat(object):
+        """ ULog message format representation """
+
         def __init__(self, data, header):
-            format_arr = parseString(data).split(':')
+            format_arr = _parse_string(data).split(':')
             self.name = format_arr[0]
             types_str = format_arr[1].split(';')
             self.fields = [] # list of tuples (type, array_size, name)
@@ -126,7 +138,8 @@ class ULog:
                 if len(t) > 0:
                     self.fields.append(self.extract_type(t))
 
-        def extract_type(self, field_str):
+        @staticmethod
+        def extract_type(field_str):
             field_str_split = field_str.split(' ')
             type_str = field_str_split[0]
             name_str = field_str_split[1]
@@ -140,11 +153,13 @@ class ULog:
                 type_name = type_str[:a_pos]
             return type_name, array_size, name_str
 
-    class MessageLogging:
+    class MessageLogging(object):
+        """ ULog logged string message representation """
+
         def __init__(self, data, header):
             self.log_level, = struct.unpack('<B', data[0:1])
             self.timestamp, = struct.unpack('<Q', data[1:9])
-            self.message = parseString(data[9:])
+            self.message = _parse_string(data[9:])
 
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
@@ -156,21 +171,24 @@ class ULog:
                     ord('6'): 'INFO',
                     ord('7'): 'DEBUG'}.get(self.log_level, 'UNKNOWN')
 
-    class MessageDropout:
+    class MessageDropout(object):
+        """ ULog dropout message representation """
         def __init__(self, data, header, timestamp):
             self.duration, = struct.unpack('<H', data)
             self.timestamp = timestamp
 
-    class FieldData:
+    class FieldData(object):
+        """ Type and name of a single ULog data field """
         def __init__(self, field_name, type_str):
             self.field_name = field_name
             self.type_str = type_str
 
-    class MessageAddLogged:
+    class MessageAddLogged(object):
+        """ ULog add logging data message representation """
         def __init__(self, data, header, message_formats):
             self.multi_id, = struct.unpack('<B', data[0:1])
             self.msg_id, = struct.unpack('<H', data[1:3])
-            self.message_name = parseString(data[3:])
+            self.message_name = _parse_string(data[3:])
             self.field_data = [] # list of FieldData
             self.timestamp_idx = -1
             self.parse_format(message_formats)
@@ -184,12 +202,11 @@ class ULog:
             self.buffer = bytearray() # accumulate all message data here
 
             # construct types for numpy
-            self.dtype = []
+            dtype_list = []
             for field in self.field_data:
-                dt = ULog.UNPACK_TYPES[field.type_str][2]
-                self.dtype.append((field.field_name, dt))
-            self.dtype = np.dtype(self.dtype)
-            self.dtype = self.dtype.newbyteorder('<')
+                numpy_type = ULog.UNPACK_TYPES[field.type_str][2]
+                dtype_list.append((field.field_name, numpy_type))
+            self.dtype = np.dtype(dtype_list).newbyteorder('<')
 
 
         def parse_format(self, message_formats):
@@ -222,7 +239,7 @@ class ULog:
                         self.parse_nested_type(prefix_str+field_name+'.',
                                                type_name, message_formats)
 
-    class MessageData:
+    class MessageData(object):
         def __init__(self):
             self.timestamp = 0
 
@@ -254,7 +271,7 @@ class ULog:
         """
 
 
-        """ parsed data: public interface """
+        ## parsed data: public interface ##
 
         self.start_timestamp = 0 # timestamp of file start
         self.last_timestamp = 0 # timestam of last message
@@ -275,21 +292,21 @@ class ULog:
         self.missing_message_ids = set() # MessageAddLogged id's that could not be found
 
 
-        self.loadFile(file_name, message_name_filter_list)
+        self._load_file(file_name, message_name_filter_list)
 
-    def loadFile(self, file_name, message_name_filter_list):
+    def _load_file(self, file_name, message_name_filter_list):
         """ load and parse an ULog file into memory """
         self.file_name = file_name
         self.file_handle = open(file_name, "rb")
 
         # parse the whole file
-        self.read_file_header()
+        self._read_file_header()
         self.last_timestamp = self.start_timestamp
-        self.read_file_definitions()
-        self.read_file_data(message_name_filter_list)
+        self._read_file_definitions()
+        self._read_file_data(message_name_filter_list)
 
 
-    def read_file_header(self):
+    def _read_file_header(self):
         header_data = self.file_handle.read(16)
         if len(header_data) != 16:
             raise Exception("Invalid file format (Header too short)")
@@ -301,7 +318,7 @@ class ULog:
         # read timestamp
         self.start_timestamp, = ULog._unpack_uint64(header_data[8:])
 
-    def read_file_definitions(self):
+    def _read_file_definitions(self):
         header = self.MessageHeader()
         while True:
             data = self.file_handle.read(3)
@@ -324,7 +341,7 @@ class ULog:
                 break # end of section
             #else: skip
 
-    def read_file_data(self, message_name_filter_list):
+    def _read_file_data(self, message_name_filter_list):
         try:
             # pre-init reusable objects
             header = self.MessageHeader()
@@ -344,7 +361,7 @@ class ULog:
                 elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
                     msg_add_logged = self.MessageAddLogged(data, header,
                                                            self.message_formats)
-                    if (message_name_filter_list == None or
+                    if (message_name_filter_list is None or
                             msg_add_logged.message_name in message_name_filter_list):
                         self.subscriptions[msg_add_logged.msg_id] = msg_add_logged
                     else:
@@ -366,7 +383,7 @@ class ULog:
 
         # convert into final representation
         while self.subscriptions:
-            key, value = self.subscriptions.popitem()
+            _, value = self.subscriptions.popitem()
             if len(value.buffer) > 0: # only add if we have data
                 data_item = ULog.Data(value)
                 self.data_list.append(data_item)
