@@ -52,6 +52,11 @@ class ULog:
             'char'     : [ 'c', 1, np.int8 ]
             }
 
+    # pre-init unpack structs for quicker use
+    _unpack_ushort_byte = struct.Struct('<HB').unpack
+    _unpack_ushort = struct.Struct('<H').unpack
+    _unpack_uint64 = struct.Struct('<Q').unpack
+
 
     class Data:
         def __init__(self, message_add_logged_obj):
@@ -89,8 +94,12 @@ class ULog:
     """ Representations of the messages from the log file """
 
     class MessageHeader:
-        def __init__(self, data):
-            self.msg_size,self.msg_type = struct.unpack('<HB', data)
+        def __init__(self):
+            self.msg_size = 0
+            self.msg_type = 0
+
+        def initialize(self, data):
+            self.msg_size,self.msg_type = ULog._unpack_ushort_byte(data)
 
     class MessageInfo:
         def __init__(self, data, header):
@@ -214,15 +223,18 @@ class ULog:
                                 type_name, message_formats)
 
     class MessageData:
-        def __init__(self, data, header, subscriptions, ulog_object):
-            msg_id, = struct.unpack('<H', data[:2])
+        def __init__(self):
+            self.timestamp = 0
+
+        def initialize(self, data, header, subscriptions, ulog_object):
+            msg_id, = ULog._unpack_ushort(data[:2])
             if msg_id in subscriptions:
                 subscription = subscriptions[msg_id]
                 # accumulate data to a buffer, will be parsed later
                 subscription.buffer += data[2:]
                 t_off = subscription.timestamp_offset
                 # TODO: the timestamp can have another size than uint64
-                self.timestamp, = struct.unpack('<Q', data[t_off+2:t_off+10])
+                self.timestamp, = ULog._unpack_uint64(data[t_off+2:t_off+10])
             else:
                 if not msg_id in ulog_object.filtered_message_ids:
                     # this is an error, but make it non-fatal
@@ -286,14 +298,15 @@ class ULog:
             print("Warning: unknown file version. Will attempt to read it anyway")
 
         # read timestamp
-        self.start_timestamp, = struct.unpack('<Q', header_data[8:])
+        self.start_timestamp, = ULog._unpack_uint64(header_data[8:])
 
     def read_file_definitions(self):
+        header = self.MessageHeader()
         while(True):
             data = self.file_handle.read(3)
             if not data:
                 break
-            header = self.MessageHeader(data)
+            header.initialize(data)
             data = self.file_handle.read(header.msg_size)
             if (header.msg_type == self.MSG_TYPE_INFO):
                 msg_info = self.MessageInfo(data, header)
@@ -312,9 +325,13 @@ class ULog:
 
     def read_file_data(self, message_name_filter_list):
         try:
+            # pre-init reusable objects
+            header = self.MessageHeader()
+            msg_data = self.MessageData()
+
             while(True):
                 data = self.file_handle.read(3)
-                header = self.MessageHeader(data)
+                header.initialize(data)
                 data = self.file_handle.read(header.msg_size)
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
@@ -335,8 +352,7 @@ class ULog:
                     msg_logging = self.MessageLogging(data, header)
                     self.logged_messages.append(msg_logging)
                 elif (header.msg_type == self.MSG_TYPE_DATA):
-                    msg_data = self.MessageData(data, header,
-                            self.subscriptions, self)
+                    msg_data.initialize(data, header, self.subscriptions, self)
                     if msg_data.timestamp != 0:
                         self.last_timestamp = msg_data.timestamp
                 elif (header.msg_type == self.MSG_TYPE_DROPOUT):
