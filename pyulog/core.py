@@ -62,6 +62,23 @@ class ULog(object):
     _unpack_uint64 = struct.Struct('<Q').unpack
 
 
+    def get_dataset(self, name, multi_instance=0):
+        """ get a specific dataset.
+
+        example:
+        try:
+            gyro_data = ulog.get_dataset('sensor_gyro')
+        except (KeyError, IndexError, ValueError) as error:
+            print(type(error), "(sensor_gyro):", error)
+
+        :param name: name of the dataset
+        :param multi_instance: the multi_id, defaults to the first
+        :raises KeyError, IndexError, ValueError: if name or instance not found
+        """
+        return [elem for elem in self.data_list
+                if elem.name == name and elem.multi_id == multi_instance][0]
+
+
     class Data(object):
         """ contains the final topic data for a single topic and instance """
 
@@ -266,7 +283,7 @@ class ULog(object):
         """
         Initialize the object & load the file
 
-        @param message_name_filter_list: list of strings, to only load messages
+        :param message_name_filter_list: list of strings, to only load messages
                with the given names.
         """
 
