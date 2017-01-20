@@ -971,6 +971,24 @@ plt.text(pos_track_err_max_time, pos_track_err_max, 'max='+str(round(pos_track_e
 
 pp.savefig()
 
+# Plot the EKF wind estimates
+plt.figure(16,figsize=(20,13))
+
+plt.subplot(2,1,1)
+plt.plot(1e-6*estimator_status['timestamp'] , estimator_status['states[22]'],'b')
+plt.title('Wind Velocity Estimates')
+plt.ylabel('North (m/s)')
+plt.xlabel('time (sec)')
+plt.grid()
+
+plt.subplot(2,1,2)
+plt.plot(1e-6*estimator_status['timestamp'] , estimator_status['states[23]'],'b')
+plt.ylabel('East (m/s)')
+plt.xlabel('time (sec)')
+plt.grid()
+
+pp.savefig()
+
 # close the pdf file
 pp.close()
 
