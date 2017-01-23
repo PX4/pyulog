@@ -92,3 +92,20 @@ class PX4ULog(object):
             message_data.data['pitch'+field_name_suffix] = pitch
             message_data.data['yaw'+field_name_suffix] = yaw
 
+
+    def get_configured_rc_input_names(self, channel):
+        """
+        find all RC mappings to a given channel and return their names
+
+        :param channel: input channel (0=first)
+        :return: list of strings or None
+        """
+        ret_val = []
+        for key in self.ulog.initial_parameters:
+            param_val = self.ulog.initial_parameters[key]
+            if key.startswith('RC_MAP_') and param_val == channel + 1:
+                ret_val.append(key[7:].capitalize())
+
+        if len(ret_val) > 0:
+            return ret_val
+        return None
