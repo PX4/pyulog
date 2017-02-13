@@ -44,14 +44,16 @@ def main():
         print('SW Version: {}'.format(version))
 
     print("Info Messages:")
-    for k in ulog.msg_info_dict:
+    for k in sorted(ulog.msg_info_dict):
         print(" {0}: {1}".format(k, ulog.msg_info_dict[k]))
 
 
     print("")
     print("{:<41} {:7}, {:10}".format("Name (multi id, message size in bytes)",
                                       "number of data points", "total bytes"))
-    for d in ulog.data_list:
+
+    data_list_sorted = sorted(ulog.data_list, key=lambda d: d.name + str(d.multi_id))
+    for d in data_list_sorted:
         message_size = sum([ULog.UNPACK_TYPES[f.type_str][1] for f in d.field_data])
         num_data_points = len(d.data['timestamp'])
         name_id = "{:} ({:}, {:})".format(d.name, d.multi_id, message_size)
