@@ -314,7 +314,7 @@ class ULog(object):
     def _load_file(self, file_name, message_name_filter_list):
         """ load and parse an ULog file into memory """
         self.file_name = file_name
-        self.file_handle = open(file_name, "rb")
+        self._file_handle = open(file_name, "rb")
 
         # parse the whole file
         self._read_file_header()
@@ -322,9 +322,12 @@ class ULog(object):
         self._read_file_definitions()
         self._read_file_data(message_name_filter_list)
 
+        self._file_handle.close()
+        del self._file_handle
+
 
     def _read_file_header(self):
-        header_data = self.file_handle.read(16)
+        header_data = self._file_handle.read(16)
         if len(header_data) != 16:
             raise Exception("Invalid file format (Header too short)")
         if header_data[:7] != self.HEADER_BYTES:
@@ -338,11 +341,11 @@ class ULog(object):
     def _read_file_definitions(self):
         header = self.MessageHeader()
         while True:
-            data = self.file_handle.read(3)
+            data = self._file_handle.read(3)
             if not data:
                 break
             header.initialize(data)
-            data = self.file_handle.read(header.msg_size)
+            data = self._file_handle.read(header.msg_size)
             if header.msg_type == self.MSG_TYPE_INFO:
                 msg_info = self.MessageInfo(data, header)
                 self.msg_info_dict[msg_info.key] = msg_info.value
@@ -354,7 +357,7 @@ class ULog(object):
                 self.initial_parameters[msg_info.key] = msg_info.value
             elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
                   header.msg_type == self.MSG_TYPE_LOGGING):
-                self.file_handle.seek(-(3+header.msg_size), 1)
+                self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
             #else: skip
 
@@ -365,9 +368,9 @@ class ULog(object):
             msg_data = self.MessageData()
 
             while True:
-                data = self.file_handle.read(3)
+                data = self._file_handle.read(3)
                 header.initialize(data)
-                data = self.file_handle.read(header.msg_size)
+                data = self._file_handle.read(header.msg_size)
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
 
