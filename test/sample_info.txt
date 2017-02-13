@@ -1,0 +1,24 @@
+Logging start time: 0:01:52, duration: 0:01:08
+Dropouts: count: 4, total duration: 0.1 s, max: 62 ms, mean: 29 ms
+Info Messages:
+ sys_name: PX4
+ time_ref_utc: 0
+ ver_hw: AUAV_X21
+ ver_sw: fd483321a5cf50ead91164356d15aa474643aa73
+
+Name (multi id, message size in bytes)    number of data points, total bytes
+ actuator_controls_0 (0, 48)                 3269     156912
+ actuator_outputs (0, 76)                    1311      99636
+ commander_state (0, 9)                       678       6102
+ control_state (0, 122)                      3268     398696
+ cpuload (0, 16)                               69       1104
+ ekf2_innovations (0, 140)                   3271     457940
+ estimator_status (0, 309)                   1311     405099
+ sensor_combined (0, 72)                    17070    1229040
+ sensor_preflight (0, 16)                   17072     273152
+ telemetry_status (0, 36)                      70       2520
+ vehicle_attitude (0, 36)                    6461     232596
+ vehicle_attitude_setpoint (0, 55)           3272     179960
+ vehicle_local_position (0, 123)              678      83394
+ vehicle_rates_setpoint (0, 24)              6448     154752
+ vehicle_status (0, 45)                       294      13230

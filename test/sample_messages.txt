@@ -1,0 +1,4 @@
+0:02:38 ERROR: [sensors] no barometer found on /dev/baro0 (2)
+0:02:42 ERROR: [sensors] no barometer found on /dev/baro0 (2)
+0:02:51 ERROR: [sensors] no barometer found on /dev/baro0 (2)
+0:02:56 ERROR: [sensors] no barometer found on /dev/baro0 (2)
