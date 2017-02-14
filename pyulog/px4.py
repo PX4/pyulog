@@ -16,12 +16,12 @@ class PX4ULog(object):
         """
         @param ulog_object: ULog instance
         """
-        self.ulog = ulog_object
+        self._ulog = ulog_object
 
     def get_mav_type(self):
         """ return the MAV type as string from initial parameters """
 
-        mav_type = self.ulog.initial_parameters.get('MAV_TYPE', None)
+        mav_type = self._ulog.initial_parameters.get('MAV_TYPE', None)
         return {0: 'Generic',
                 1: 'Fixed Wing',
                 2: 'Quadrotor',
@@ -54,11 +54,11 @@ class PX4ULog(object):
     def get_estimator(self):
         """return the configured estimator as string from initial parameters"""
 
-        mav_type = self.ulog.initial_parameters.get('MAV_TYPE', None)
+        mav_type = self._ulog.initial_parameters.get('MAV_TYPE', None)
         if mav_type == 1: # fixed wing always uses EKF2
             return 'EKF2'
 
-        mc_est_group = self.ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
+        mc_est_group = self._ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
         return {0: 'INAV',
                 1: 'LPE',
                 2: 'EKF2',
@@ -80,7 +80,7 @@ class PX4ULog(object):
 
     def _add_roll_pitch_yaw_to_message(self, message_name, field_name_suffix=''):
 
-        message_data_all = [elem for elem in self.ulog.data_list if elem.name == message_name]
+        message_data_all = [elem for elem in self._ulog.data_list if elem.name == message_name]
         for message_data in message_data_all:
             q = [message_data.data['q'+field_name_suffix+'['+str(i)+']'] for i in range(4)]
             roll = np.arctan2(2.0 * (q[0] * q[1] + q[2] * q[3]),
@@ -101,8 +101,8 @@ class PX4ULog(object):
         :return: list of strings or None
         """
         ret_val = []
-        for key in self.ulog.initial_parameters:
-            param_val = self.ulog.initial_parameters[key]
+        for key in self._ulog.initial_parameters:
+            param_val = self._ulog.initial_parameters[key]
             if key.startswith('RC_MAP_') and param_val == channel + 1:
                 ret_val.append(key[7:].capitalize())
 
