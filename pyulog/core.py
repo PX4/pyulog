@@ -41,7 +41,7 @@ class ULog(object):
     MSG_TYPE_DROPOUT = ord('O')
     MSG_TYPE_LOGGING = ord('L')
 
-    UNPACK_TYPES = {
+    _UNPACK_TYPES = {
         'int8_t':   ['b', 1, np.int8],
         'uint8_t':  ['B', 1, np.uint8],
         'int16_t':  ['h', 2, np.int16],
@@ -55,6 +55,16 @@ class ULog(object):
         'bool':     ['?', 1, np.int8],
         'char':     ['c', 1, np.int8]
         }
+
+
+    @staticmethod
+    def get_field_size(type_str):
+        """
+        get the field size in bytes.
+        :param type_str: type string, eg. 'int8_t'
+        """
+        return ULog._UNPACK_TYPES[type_str][1]
+
 
     # pre-init unpack structs for quicker use
     _unpack_ushort_byte = struct.Struct('<HB').unpack
@@ -137,8 +147,8 @@ class ULog(object):
             self.key = type_key_split[1]
             if self.type.startswith('char['): # it's a string
                 self.value = _parse_string(data[1+key_len:])
-            elif self.type in ULog.UNPACK_TYPES:
-                unpack_type = ULog.UNPACK_TYPES[self.type]
+            elif self.type in ULog._UNPACK_TYPES:
+                unpack_type = ULog._UNPACK_TYPES[self.type]
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
             else: # probably an array (or non-basic type)
                 self.value = data[1+key_len:]
@@ -214,14 +224,14 @@ class ULog(object):
             for field in self.field_data:
                 if field.field_name == 'timestamp':
                     break
-                self.timestamp_offset += ULog.UNPACK_TYPES[field.type_str][1]
+                self.timestamp_offset += ULog._UNPACK_TYPES[field.type_str][1]
 
             self.buffer = bytearray() # accumulate all message data here
 
             # construct types for numpy
             dtype_list = []
             for field in self.field_data:
-                numpy_type = ULog.UNPACK_TYPES[field.type_str][2]
+                numpy_type = ULog._UNPACK_TYPES[field.type_str][2]
                 dtype_list.append((field.field_name, numpy_type))
             self.dtype = np.dtype(dtype_list).newbyteorder('<')
 
@@ -238,7 +248,7 @@ class ULog(object):
             # we flatten nested types
             message_format = message_formats[type_name]
             for (type_name, array_size, field_name) in message_format.fields:
-                if type_name in ULog.UNPACK_TYPES:
+                if type_name in ULog._UNPACK_TYPES:
                     if array_size > 1:
                         for i in range(array_size):
                             self.field_data.append(ULog.FieldData(
