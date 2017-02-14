@@ -72,6 +72,82 @@ class ULog(object):
     _unpack_uint64 = struct.Struct('<Q').unpack
 
 
+    def __init__(self, file_name, message_name_filter_list=None):
+        """
+        Initialize the object & load the file from disk.
+
+        :param message_name_filter_list: list of strings, to only load messages
+               with the given names. If None, load everything.
+        """
+
+        self._start_timestamp = 0
+        self._last_timestamp = 0
+        self._msg_info_dict = {}
+        self._initial_parameters = {}
+        self._changed_parameters = []
+        self._message_formats = {}
+        self._logged_messages = []
+        self._dropouts = []
+        self._data_list = []
+
+        self._subscriptions = {} # dict of key=msg_id, value=_MessageAddLogged
+        self._filtered_message_ids = set() # _MessageAddLogged id's that are filtered
+        self._missing_message_ids = set() # _MessageAddLogged id's that could not be found
+
+        self._load_file(file_name, message_name_filter_list)
+
+
+    ## parsed data
+
+    @property
+    def start_timestamp(self):
+        """ timestamp of file start """
+        return self._start_timestamp
+
+    @property
+    def last_timestamp(self):
+        """ timestamp of last message """
+        return self._last_timestamp
+
+    @property
+    def msg_info_dict(self):
+        """ dictionary of all information messages (key is a string, value
+        depends on the type, usually string or int) """
+        return self._msg_info_dict
+
+    @property
+    def initial_parameters(self):
+        """ dictionary of all initially set parameters (key=param name) """
+        return self._initial_parameters
+
+    @property
+    def changed_parameters(self):
+        """ list of all changed parameters (tuple of (timestamp, name, value))"""
+        return self._changed_parameters
+
+    @property
+    def message_formats(self):
+        """ dictionary with key = format name (MessageFormat.name),
+        value = MessageFormat object """
+        return self._message_formats
+
+    @property
+    def logged_messages(self):
+        """ list of MessageLogging objects """
+        return self._logged_messages
+
+    @property
+    def dropouts(self):
+        """ list of MessageDropout objects """
+        return self._dropouts
+
+    @property
+    def data_list(self):
+        """ extracted data: list of Data objects """
+        return self._data_list
+
+
+
     def get_dataset(self, name, multi_instance=0):
         """ get a specific dataset.
 
@@ -85,7 +161,7 @@ class ULog(object):
         :param multi_instance: the multi_id, defaults to the first
         :raises KeyError, IndexError, ValueError: if name or instance not found
         """
-        return [elem for elem in self.data_list
+        return [elem for elem in self._data_list
                 if elem.name == name and elem.multi_id == multi_instance][0]
 
 
@@ -289,36 +365,6 @@ class ULog(object):
                 self.timestamp = 0
 
 
-    def __init__(self, file_name, message_name_filter_list=None):
-        """
-        Initialize the object & load the file from disk.
-
-        :param message_name_filter_list: list of strings, to only load messages
-               with the given names. If None, load everything.
-        """
-
-
-        ## parsed data: public interface ##
-
-        self.start_timestamp = 0 # timestamp of file start
-        self.last_timestamp = 0 # timestam of last message
-        self.msg_info_dict = {} # dict of all information messages
-        self.initial_parameters = {} # dict of all initially set parameters (key=param name)
-        self.changed_parameters = [] # list of all changed parameters (tuple of
-                                     # (timestamp, name, value))
-        self.message_formats = {} # dict with key=format name, value = MessageFormat object
-        self.logged_messages = [] # array of MessageLogging objects
-        self.dropouts = [] # list of MessageDropout objects
-        self.data_list = [] # extracted data: list of Data objects
-
-
-        self._subscriptions = {} # dict of key=msg_id, value=_MessageAddLogged
-        self._filtered_message_ids = set() # _MessageAddLogged id's that are filtered
-        self._missing_message_ids = set() # _MessageAddLogged id's that could not be found
-
-        self._load_file(file_name, message_name_filter_list)
-
-
     def _load_file(self, file_name, message_name_filter_list):
         """ load and parse an ULog file into memory """
         self.file_name = file_name
@@ -326,7 +372,7 @@ class ULog(object):
 
         # parse the whole file
         self._read_file_header()
-        self.last_timestamp = self.start_timestamp
+        self._last_timestamp = self._start_timestamp
         self._read_file_definitions()
         self._read_file_data(message_name_filter_list)
 
@@ -344,7 +390,7 @@ class ULog(object):
             print("Warning: unknown file version. Will attempt to read it anyway")
 
         # read timestamp
-        self.start_timestamp, = ULog._unpack_uint64(header_data[8:])
+        self._start_timestamp, = ULog._unpack_uint64(header_data[8:])
 
     def _read_file_definitions(self):
         header = self._MessageHeader()
@@ -356,13 +402,13 @@ class ULog(object):
             data = self._file_handle.read(header.msg_size)
             if header.msg_type == self.MSG_TYPE_INFO:
                 msg_info = self._MessageInfo(data, header)
-                self.msg_info_dict[msg_info.key] = msg_info.value
+                self._msg_info_dict[msg_info.key] = msg_info.value
             elif header.msg_type == self.MSG_TYPE_FORMAT:
                 msg_format = self.MessageFormat(data, header)
-                self.message_formats[msg_format.name] = msg_format
+                self._message_formats[msg_format.name] = msg_format
             elif header.msg_type == self.MSG_TYPE_PARAMETER:
                 msg_info = self._MessageInfo(data, header)
-                self.initial_parameters[msg_info.key] = msg_info.value
+                self._initial_parameters[msg_info.key] = msg_info.value
             elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
                   header.msg_type == self.MSG_TYPE_LOGGING):
                 self._file_handle.seek(-(3+header.msg_size), 1)
@@ -384,11 +430,11 @@ class ULog(object):
 
                 if header.msg_type == self.MSG_TYPE_PARAMETER:
                     msg_info = self._MessageInfo(data, header)
-                    self.changed_parameters.append((self.last_timestamp,
-                                                    msg_info.key, msg_info.value))
+                    self._changed_parameters.append((self._last_timestamp,
+                                                     msg_info.key, msg_info.value))
                 elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
                     msg_add_logged = self._MessageAddLogged(data, header,
-                                                            self.message_formats)
+                                                            self._message_formats)
                     if (message_name_filter_list is None or
                             msg_add_logged.message_name in message_name_filter_list):
                         self._subscriptions[msg_add_logged.msg_id] = msg_add_logged
@@ -396,15 +442,15 @@ class ULog(object):
                         self._filtered_message_ids.add(msg_add_logged.msg_id)
                 elif header.msg_type == self.MSG_TYPE_LOGGING:
                     msg_logging = self.MessageLogging(data, header)
-                    self.logged_messages.append(msg_logging)
+                    self._logged_messages.append(msg_logging)
                 elif header.msg_type == self.MSG_TYPE_DATA:
                     msg_data.initialize(data, header, self._subscriptions, self)
                     if msg_data.timestamp != 0:
-                        self.last_timestamp = msg_data.timestamp
+                        self._last_timestamp = msg_data.timestamp
                 elif header.msg_type == self.MSG_TYPE_DROPOUT:
                     msg_dropout = self.MessageDropout(data, header,
-                                                      self.last_timestamp)
-                    self.dropouts.append(msg_dropout)
+                                                      self._last_timestamp)
+                    self._dropouts.append(msg_dropout)
                 #else: skip
         except struct.error:
             pass #we read past the end of the file
@@ -414,7 +460,7 @@ class ULog(object):
             _, value = self._subscriptions.popitem()
             if len(value.buffer) > 0: # only add if we have data
                 data_item = ULog.Data(value)
-                self.data_list.append(data_item)
+                self._data_list.append(data_item)
 
 
     def get_version_info(self, key_name='ver_sw_release'):
@@ -428,8 +474,8 @@ class ULog(object):
          >= 192: RC version
          == 255: release version
         """
-        if key_name in self.msg_info_dict:
-            val = self.msg_info_dict[key_name]
+        if key_name in self._msg_info_dict:
+            val = self._msg_info_dict[key_name]
             return ((val >> 24) & 0xff, (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff)
         return None
 
