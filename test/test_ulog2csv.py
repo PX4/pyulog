@@ -74,8 +74,7 @@ class Test(unittest.TestCase):
             '',
             os.path.join(TEST_PATH, 'sample.ulg')
         ]
-        self.run_against_file(
-                os.path.join(TEST_PATH, 'sample_params.txt'), params.main)
+        params.main()
 
 
 # vim: set et fenc=utf-8 ft=python ff=unix sts=4 sw=4 ts=4 : 
