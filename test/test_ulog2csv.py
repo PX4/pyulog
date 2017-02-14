@@ -21,6 +21,7 @@ class Test(unittest.TestCase):
         saved_stdout = sys.stdout
         with open(expected_output_file, 'r') as file_handle:
             expected_output = file_handle.read().strip()
+            output = None
             try:
                 out = StringIO()
                 sys.stdout = out
@@ -28,11 +29,12 @@ class Test(unittest.TestCase):
                 output = out.getvalue().strip()
                 assert output == expected_output
             finally:
-                sys.stdout = saved_stdout
-                print("Got output:")
-                print(output)
-                print("\nExpected output:")
-                print(expected_output)
+                if output is not None:
+                    sys.stdout = saved_stdout
+                    print("Got output:")
+                    print(output)
+                    print("\nExpected output:")
+                    print(expected_output)
 
     def test_ulog2csv(self):
         tmpdir = tempfile.gettempdir()
