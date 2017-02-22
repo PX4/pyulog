@@ -445,7 +445,7 @@ class ULog(object):
                     self._logged_messages.append(msg_logging)
                 elif header.msg_type == self.MSG_TYPE_DATA:
                     msg_data.initialize(data, header, self._subscriptions, self)
-                    if msg_data.timestamp != 0:
+                    if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
                         self._last_timestamp = msg_data.timestamp
                 elif header.msg_type == self.MSG_TYPE_DROPOUT:
                     msg_dropout = self.MessageDropout(data, header,
