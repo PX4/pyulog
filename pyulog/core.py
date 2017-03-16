@@ -428,7 +428,10 @@ class ULog(object):
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
 
-                if header.msg_type == self.MSG_TYPE_PARAMETER:
+                if header.msg_type == self.MSG_TYPE_INFO:
+                    msg_info = self._MessageInfo(data, header)
+                    self._msg_info_dict[msg_info.key] = msg_info.value
+                elif header.msg_type == self.MSG_TYPE_PARAMETER:
                     msg_info = self._MessageInfo(data, header)
                     self._changed_parameters.append((self._last_timestamp,
                                                      msg_info.key, msg_info.value))
