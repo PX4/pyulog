@@ -17,6 +17,8 @@ def main():
     """Commande line interface"""
     parser = argparse.ArgumentParser(description='Display information from an ULog file')
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        help='Verbose output', default=False)
 
 
     args = parser.parse_args()
@@ -45,7 +47,8 @@ def main():
 
     print("Info Messages:")
     for k in sorted(ulog.msg_info_dict):
-        print(" {0}: {1}".format(k, ulog.msg_info_dict[k]))
+        if not k.startswith('perf_') or args.verbose:
+            print(" {0}: {1}".format(k, ulog.msg_info_dict[k]))
 
 
     print("")
