@@ -323,24 +323,25 @@ class ULog(object):
         def _parse_nested_type(self, prefix_str, type_name, message_formats):
             # we flatten nested types
             message_format = message_formats[type_name]
-            for (type_name, array_size, field_name) in message_format.fields:
-                if type_name in ULog._UNPACK_TYPES:
+            for (type_name_fmt, array_size, field_name) in message_format.fields:
+                if type_name_fmt in ULog._UNPACK_TYPES:
                     if array_size > 1:
                         for i in range(array_size):
                             self.field_data.append(ULog._FieldData(
-                                prefix_str+field_name+'['+str(i)+']', type_name))
+                                prefix_str+field_name+'['+str(i)+']', type_name_fmt))
                     else:
-                        self.field_data.append(ULog._FieldData(prefix_str+field_name, type_name))
+                        self.field_data.append(ULog._FieldData(
+                            prefix_str+field_name, type_name_fmt))
                     if prefix_str+field_name == 'timestamp':
                         self.timestamp_idx = len(self.field_data) - 1
                 else: # nested type
                     if array_size > 1:
                         for i in range(array_size):
                             self._parse_nested_type(prefix_str+field_name+'['+str(i)+'].',
-                                                    type_name, message_formats)
+                                                    type_name_fmt, message_formats)
                     else:
                         self._parse_nested_type(prefix_str+field_name+'.',
-                                                type_name, message_formats)
+                                                type_name_fmt, message_formats)
 
     class _MessageData(object):
         def __init__(self):
