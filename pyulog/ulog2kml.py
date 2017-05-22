@@ -26,11 +26,15 @@ def main():
     parser.add_argument('--topic', dest='topic_name',
                         help="topic name with position data (default=vehicle_gps_position)",
                         default='vehicle_gps_position')
+    parser.add_argument('--camera-trigger', dest='camera_trigger',
+                        help="Camera trigger topic name (e.g. camera_capture)",
+                        default=None)
 
     args = parser.parse_args()
 
     convert_ulog2kml(args.filename, args.output_filename,
-                     position_topic_name=args.topic_name)
+                     position_topic_name=args.topic_name,
+                     camera_trigger_topic_name=args.camera_trigger)
 
     # alternative example call:
 #    convert_ulog2kml(args.filename, 'test.kml', ['vehicle_global_position',
@@ -50,7 +54,7 @@ def _kml_default_colors(x):
 
 def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
                      'vehicle_gps_position', colors=_kml_default_colors, altitude_offset=0,
-                     minimum_interval_s=0.1, style=None):
+                     minimum_interval_s=0.1, style=None, camera_trigger_topic_name=None):
     """
     Coverts and ULog file to a CSV file.
 
@@ -67,6 +71,8 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
     :param style: dictionary with rendering options:
                   'extrude': Bool
                   'line_width': int
+    :param camera_trigger_topic_name: name of the camera trigger topic (must
+                                      have 'lon', 'lat' & 'seq')
 
     :return: None
     """
@@ -87,7 +93,10 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
         colors = [colors]
 
     kml = simplekml.Kml()
-    ulog = ULog(ulog_file_name, position_topic_name + ['commander_state'])
+    load_topic_names = position_topic_name + ['commander_state']
+    if camera_trigger_topic_name is not None:
+        load_topic_names.append(camera_trigger_topic_name)
+    ulog = ULog(ulog_file_name, load_topic_names)
 
     # get flight modes
     try:
@@ -102,7 +111,35 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
         _kml_add_position_data(kml, ulog, topic, cur_colors, used_style,
                                altitude_offset, minimum_interval_s, flight_mode_changes)
 
+    # camera triggers
+    _kml_add_camera_triggers(kml, ulog, camera_trigger_topic_name, altitude_offset)
+
     kml.save(output_file_name)
+
+
+def _kml_add_camera_triggers(kml, ulog, camera_trigger_topic_name, altitude_offset):
+    """
+    Add camera trigger points to the map
+    """
+
+    data = ulog.data_list
+    topic_instance = 0
+
+    cur_dataset = [elem for elem in data
+                   if elem.name == camera_trigger_topic_name and elem.multi_id == topic_instance]
+    if len(cur_dataset) > 0:
+        cur_dataset = cur_dataset[0]
+
+        pos_lon = cur_dataset.data['lon']
+        pos_lat = cur_dataset.data['lat']
+        pos_alt = cur_dataset.data['alt']
+        sequence = cur_dataset.data['seq']
+
+        for i in range(len(pos_lon)):
+            pnt = kml.newpoint(name='Camera Trigger '+str(sequence[i]))
+            pnt.coords = [(pos_lon[i], pos_lat[i], pos_alt[i] + altitude_offset)]
+            # Balloons instead of text does not work
+            #pnt.style.balloonstyle.text = 'Camera Trigger '+str(sequence[i])
 
 
 def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
