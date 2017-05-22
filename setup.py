@@ -1,7 +1,10 @@
 #!/usr/bin/env python
-"""Python log crunching for PX4.
+"""Python log parser for ULog.
 
-This module allows you to do control and statistical analysis for the PX4.
+This module allows you to parse ULog files, which are used within the PX4
+autopilot middleware.
+
+The file format is documented on https://dev.px4.io/advanced-ulog-file-format.html
 
 """
 
