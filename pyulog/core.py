@@ -80,6 +80,9 @@ class ULog(object):
                with the given names. If None, load everything.
         """
 
+        self._debug = False
+
+
         self._start_timestamp = 0
         self._last_timestamp = 0
         self._msg_info_dict = {}
@@ -93,6 +96,7 @@ class ULog(object):
         self._subscriptions = {} # dict of key=msg_id, value=_MessageAddLogged
         self._filtered_message_ids = set() # _MessageAddLogged id's that are filtered
         self._missing_message_ids = set() # _MessageAddLogged id's that could not be found
+        self._file_version = 0
 
         self._load_file(file_name, message_name_filter_list)
 
@@ -361,6 +365,8 @@ class ULog(object):
                     # this is an error, but make it non-fatal
                     if not msg_id in ulog_object._missing_message_ids:
                         ulog_object._missing_message_ids.add(msg_id)
+                        if ulog_object._debug:
+                            print(ulog_object._file_handle.tell())
                         print('Warning: no subscription found for message id {:}. Continuing,'
                               ' but file is most likely corrupt'.format(msg_id))
                 self.timestamp = 0
@@ -387,7 +393,8 @@ class ULog(object):
             raise Exception("Invalid file format (Header too short)")
         if header_data[:7] != self.HEADER_BYTES:
             raise Exception("Invalid file format (Failed to parse header)")
-        if header_data[7:8] != b'\x00':
+        self._file_version, = struct.unpack('B', header_data[7:8])
+        if self._file_version > 0:
             print("Warning: unknown file version. Will attempt to read it anyway")
 
         # read timestamp
@@ -414,7 +421,12 @@ class ULog(object):
                   header.msg_type == self.MSG_TYPE_LOGGING):
                 self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
-            #else: skip
+            else:
+                if self._debug:
+                    print('read_file_definitions: unknown message type: %i (%s)' %
+                          (header.msg_type, chr(header.msg_type)))
+                    file_position = self._file_handle.tell()
+                    print('file position: %i (0x%x)' % (file_position, file_position))
 
     def _read_file_data(self, message_name_filter_list):
         try:
@@ -455,7 +467,13 @@ class ULog(object):
                     msg_dropout = self.MessageDropout(data, header,
                                                       self._last_timestamp)
                     self._dropouts.append(msg_dropout)
-                #else: skip
+                else:
+                    if self._debug:
+                        print('_read_file_data: unknown message type: %i (%s)' %
+                              (header.msg_type, chr(header.msg_type)))
+                        file_position = self._file_handle.tell()
+                        print('file position: %i (0x%x)' % (file_position, file_position))
+
         except struct.error:
             pass #we read past the end of the file
 
