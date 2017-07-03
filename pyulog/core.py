@@ -34,12 +34,14 @@ class ULog(object):
     MSG_TYPE_FORMAT = ord('F')
     MSG_TYPE_DATA = ord('D')
     MSG_TYPE_INFO = ord('I')
+    MSG_TYPE_INFO_MULTIPLE = ord('M')
     MSG_TYPE_PARAMETER = ord('P')
     MSG_TYPE_ADD_LOGGED_MSG = ord('A')
     MSG_TYPE_REMOVE_LOGGED_MSG = ord('R')
     MSG_TYPE_SYNC = ord('S')
     MSG_TYPE_DROPOUT = ord('O')
     MSG_TYPE_LOGGING = ord('L')
+    MSG_TYPE_FLAG_BITS = ord('B')
 
     _UNPACK_TYPES = {
         'int8_t':   ['b', 1, np.int8],
@@ -86,6 +88,7 @@ class ULog(object):
         self._start_timestamp = 0
         self._last_timestamp = 0
         self._msg_info_dict = {}
+        self._msg_info_multiple_dict = {}
         self._initial_parameters = {}
         self._changed_parameters = []
         self._message_formats = {}
@@ -97,6 +100,9 @@ class ULog(object):
         self._filtered_message_ids = set() # _MessageAddLogged id's that are filtered
         self._missing_message_ids = set() # _MessageAddLogged id's that could not be found
         self._file_version = 0
+        self._compat_flags = [0] * 8
+        self._incompat_flags = [0] * 8
+        self._appended_offsets = [] # file offsets for appended data
 
         self._load_file(file_name, message_name_filter_list)
 
@@ -118,6 +124,12 @@ class ULog(object):
         """ dictionary of all information messages (key is a string, value
         depends on the type, usually string or int) """
         return self._msg_info_dict
+
+    @property
+    def msg_info_multiple_dict(self):
+        """ dictionary of all information multiple messages (key is a string, value
+        is a list of lists that contains the messages) """
+        return self._msg_info_multiple_dict
 
     @property
     def initial_parameters(self):
@@ -150,6 +162,10 @@ class ULog(object):
         """ extracted data: list of Data objects """
         return self._data_list
 
+    @property
+    def has_data_appended(self):
+        """ returns True if the log has data appended, False otherwise """
+        return self._incompat_flags[0] & 0x1
 
 
     def get_dataset(self, name, multi_instance=0):
@@ -219,7 +235,10 @@ class ULog(object):
     class _MessageInfo(object):
         """ ULog info message representation """
 
-        def __init__(self, data, header):
+        def __init__(self, data, header, is_info_multiple=False):
+            if is_info_multiple: # INFO_MULTIPLE message
+                self.is_continued, = struct.unpack('<B', data[0:1])
+                data = data[1:]
             key_len, = struct.unpack('<B', data[0:1])
             type_key = _parse_string(data[1:1+key_len])
             type_key_split = type_key.split(' ')
@@ -232,6 +251,22 @@ class ULog(object):
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
             else: # probably an array (or non-basic type)
                 self.value = data[1+key_len:]
+
+    class _MessageFlagBits(object):
+        """ ULog message flag bits """
+
+        def __init__(self, data, header):
+            if header.msg_size > 8 + 8 + 3*8:
+                # we can still parse it but might miss some information
+                print('Warning: Flags Bit message is longer than expected')
+
+            self.compat_flags = list(struct.unpack('<'+'B'*8, data[0:8]))
+            self.incompat_flags = list(struct.unpack('<'+'B'*8, data[8:16]))
+            self.appended_offsets = list(struct.unpack('<'+'Q'*3, data[16:16+3*8]))
+            # remove the 0's at the end
+            while len(self.appended_offsets) > 0 and self.appended_offsets[-1] == 0:
+                self.appended_offsets.pop()
+
 
     class MessageFormat(object):
         """ ULog message format representation """
@@ -371,6 +406,15 @@ class ULog(object):
                               ' but file is most likely corrupt'.format(msg_id))
                 self.timestamp = 0
 
+    def _add_message_info_multiple(self, msg_info):
+        """ add a message info multiple to self._msg_info_multiple_dict """
+        if msg_info.key in self._msg_info_multiple_dict:
+            if msg_info.is_continued:
+                self._msg_info_multiple_dict[msg_info.key][-1].append(msg_info.value)
+            else:
+                self._msg_info_multiple_dict[msg_info.key].append([msg_info.value])
+        else:
+            self._msg_info_multiple_dict[msg_info.key] = [[msg_info.value]]
 
     def _load_file(self, file_name, message_name_filter_list):
         """ load and parse an ULog file into memory """
@@ -381,11 +425,19 @@ class ULog(object):
         self._read_file_header()
         self._last_timestamp = self._start_timestamp
         self._read_file_definitions()
+
+        if self.has_data_appended and len(self._appended_offsets) > 0:
+            if self._debug:
+                print('This file has data appended')
+            for offset in self._appended_offsets:
+                self._read_file_data(message_name_filter_list, read_until=offset)
+                self._file_handle.seek(offset)
+
+        # read the whole file, or the rest if data appended
         self._read_file_data(message_name_filter_list)
 
         self._file_handle.close()
         del self._file_handle
-
 
     def _read_file_header(self):
         header_data = self._file_handle.read(16)
@@ -394,7 +446,7 @@ class ULog(object):
         if header_data[:7] != self.HEADER_BYTES:
             raise Exception("Invalid file format (Failed to parse header)")
         self._file_version, = struct.unpack('B', header_data[7:8])
-        if self._file_version > 0:
+        if self._file_version > 1:
             print("Warning: unknown file version. Will attempt to read it anyway")
 
         # read timestamp
@@ -411,6 +463,9 @@ class ULog(object):
             if header.msg_type == self.MSG_TYPE_INFO:
                 msg_info = self._MessageInfo(data, header)
                 self._msg_info_dict[msg_info.key] = msg_info.value
+            elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
+                msg_info = self._MessageInfo(data, header, is_info_multiple=True)
+                self._add_message_info_multiple(msg_info)
             elif header.msg_type == self.MSG_TYPE_FORMAT:
                 msg_format = self.MessageFormat(data, header)
                 self._message_formats[msg_format.name] = msg_format
@@ -421,6 +476,28 @@ class ULog(object):
                   header.msg_type == self.MSG_TYPE_LOGGING):
                 self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
+            elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
+                # make sure this is the first message in the log
+                if self._file_handle.tell() != 16 + 3 + header.msg_size:
+                    print('Error: FLAGS_BITS message must be first message. Offset:',
+                          self._file_handle.tell())
+                msg_flag_bits = self._MessageFlagBits(data, header)
+                self._compat_flags = msg_flag_bits.compat_flags
+                self._incompat_flags = msg_flag_bits.incompat_flags
+                self._appended_offsets = msg_flag_bits.appended_offsets
+                if self._debug:
+                    print('compat flags:  ', self._compat_flags)
+                    print('incompat flags:', self._incompat_flags)
+                    print('appended offsets:', self._appended_offsets)
+
+                # check if there are bits set that we don't know
+                unknown_incompat_flag_msg = "Unknown incompatible flag set: cannot parse the log"
+                if self._incompat_flags[0] & ~1:
+                    raise Exception(unknown_incompat_flag_msg)
+                for i in range(1, 8):
+                    if self._incompat_flags[i]:
+                        raise Exception(unknown_incompat_flag_msg)
+
             else:
                 if self._debug:
                     print('read_file_definitions: unknown message type: %i (%s)' %
@@ -428,7 +505,16 @@ class ULog(object):
                     file_position = self._file_handle.tell()
                     print('file position: %i (0x%x)' % (file_position, file_position))
 
-    def _read_file_data(self, message_name_filter_list):
+    def _read_file_data(self, message_name_filter_list, read_until=None):
+        """
+        read the file data section
+        :param read_until: an optional file offset: if set, parse only up to
+                           this offset (smaller than)
+        """
+
+        if read_until is None:
+            read_until = 1 << 50 # make it larger than any possible log file
+
         try:
             # pre-init reusable objects
             header = self._MessageHeader()
@@ -441,9 +527,18 @@ class ULog(object):
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
 
+                if self._file_handle.tell() > read_until:
+                    if self._debug:
+                        print('read until offset=%i done, current pos=%i' %
+                              (read_until, self._file_handle.tell()))
+                    break
+
                 if header.msg_type == self.MSG_TYPE_INFO:
                     msg_info = self._MessageInfo(data, header)
                     self._msg_info_dict[msg_info.key] = msg_info.value
+                elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
+                    msg_info = self._MessageInfo(data, header, is_info_multiple=True)
+                    self._add_message_info_multiple(msg_info)
                 elif header.msg_type == self.MSG_TYPE_PARAMETER:
                     msg_info = self._MessageInfo(data, header)
                     self._changed_parameters.append((self._last_timestamp,
