@@ -51,6 +51,18 @@ def main():
             print(" {0}: {1}".format(k, ulog.msg_info_dict[k]))
 
 
+    if len(ulog.msg_info_multiple_dict) > 0:
+        if args.verbose:
+            print("Info Multiple Messages:")
+            for k in sorted(ulog.msg_info_multiple_dict):
+                print(" {0}: {1}".format(k, ulog.msg_info_multiple_dict[k]))
+        else:
+            print("Info Multiple Messages: {}".format(
+                ", ".join(["[{}: {}]".format(k, len(ulog.msg_info_multiple_dict[k])) for k in
+                           sorted(ulog.msg_info_multiple_dict)])))
+
+
+
     print("")
     print("{:<41} {:7}, {:10}".format("Name (multi id, message size in bytes)",
                                       "number of data points", "total bytes"))
