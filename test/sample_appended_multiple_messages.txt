@@ -1,0 +1,1 @@
+0:00:11 WARNING: [commander_tests] Not ready to fly: Sensors not set up correctly

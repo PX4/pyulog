@@ -48,7 +48,7 @@ class Test(unittest.TestCase):
         delimiter=','
         ulog2csv.convert_ulog2csv(ulog_file_name, messages, output, delimiter)
 
-    @data('sample', 'sample_appended')
+    @data('sample', 'sample_appended', 'sample_appended_multiple')
     def test_pyulog_info_cli(self, test_case):
         sys.argv = [
             '',
