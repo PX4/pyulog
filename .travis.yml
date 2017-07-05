@@ -8,5 +8,5 @@ install:
     - "python setup.py build install"
     - "pip install pylint ddt"
 # command to run tests
-script: python setup.py test && pylint pyulog/*.py
+script: run_tests.sh
 
