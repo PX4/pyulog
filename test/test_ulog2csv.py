@@ -4,6 +4,7 @@ import unittest
 from pyulog import ulog2csv, info, params, messages, extract_gps_dump
 import sys
 import tempfile
+from ddt import ddt, data
 try:
     from StringIO import StringIO
 except ImportError:
@@ -12,6 +13,7 @@ except ImportError:
 TEST_PATH = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 
+@ddt
 class Test(unittest.TestCase):
 
     def run_against_file(self, expected_output_file, test):
@@ -36,22 +38,25 @@ class Test(unittest.TestCase):
                     print("\nExpected output:")
                     print(expected_output)
 
-    def test_ulog2csv(self):
+    @data('sample')
+    def test_ulog2csv(self, test_case):
         tmpdir = tempfile.gettempdir()
         print('writing files to ', tmpdir)
-        ulog_file_name = os.path.join(TEST_PATH, 'sample.ulg')
+        ulog_file_name = os.path.join(TEST_PATH, test_case+'.ulg')
         messages = []
         output=tmpdir
         delimiter=','
         ulog2csv.convert_ulog2csv(ulog_file_name, messages, output, delimiter)
 
-    def test_pyulog_info_cli(self):
+    @data('sample', 'sample_appended')
+    def test_pyulog_info_cli(self, test_case):
         sys.argv = [
             '',
-            os.path.join(TEST_PATH, 'sample.ulg')
+            os.path.join(TEST_PATH, test_case+'.ulg'),
+            '-v'
         ]
         self.run_against_file(
-                os.path.join(TEST_PATH, 'sample_info.txt'), info.main)
+                os.path.join(TEST_PATH, test_case+'_info.txt'), info.main)
 
     @unittest.skip("no gps data in log file")
     def test_extract_gps_dump_cli(self):
@@ -61,18 +66,20 @@ class Test(unittest.TestCase):
         ]
         extract_gps_dump.main()
 
-    def test_messages_cli(self):
+    @data('sample', 'sample_appended')
+    def test_messages_cli(self, test_case):
         sys.argv = [
             '',
-            os.path.join(TEST_PATH, 'sample.ulg')
+            os.path.join(TEST_PATH, test_case+'.ulg')
         ]
         self.run_against_file(
-                os.path.join(TEST_PATH, 'sample_messages.txt'), messages.main)
+                os.path.join(TEST_PATH, test_case+'_messages.txt'), messages.main)
 
-    def test_params_cli(self):
+    @data('sample', 'sample_appended')
+    def test_params_cli(self, test_case):
         sys.argv = [
             '',
-            os.path.join(TEST_PATH, 'sample.ulg')
+            os.path.join(TEST_PATH, test_case+'.ulg')
         ]
         params.main()
 
