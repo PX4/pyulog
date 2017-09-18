@@ -93,15 +93,15 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
         colors = [colors]
 
     kml = simplekml.Kml()
-    load_topic_names = position_topic_name + ['commander_state']
+    load_topic_names = position_topic_name + ['vehicle_status']
     if camera_trigger_topic_name is not None:
         load_topic_names.append(camera_trigger_topic_name)
     ulog = ULog(ulog_file_name, load_topic_names)
 
     # get flight modes
     try:
-        cur_dataset = ulog.get_dataset('commander_state')
-        flight_mode_changes = cur_dataset.list_value_changes('main_state')
+        cur_dataset = ulog.get_dataset('vehicle_status')
+        flight_mode_changes = cur_dataset.list_value_changes('nav_state')
         flight_mode_changes.append((ulog.last_timestamp, -1))
     except (KeyError, IndexError) as error:
         flight_mode_changes = []
