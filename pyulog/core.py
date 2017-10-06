@@ -74,7 +74,7 @@ class ULog(object):
     _unpack_uint64 = struct.Struct('<Q').unpack
 
 
-    def __init__(self, file_name, message_name_filter_list=None):
+    def __init__(self, file, message_name_filter_list=None):
         """
         Initialize the object & load the file from disk.
 
@@ -104,7 +104,7 @@ class ULog(object):
         self._incompat_flags = [0] * 8
         self._appended_offsets = [] # file offsets for appended data
 
-        self._load_file(file_name, message_name_filter_list)
+        self._load_file(file, message_name_filter_list)
 
 
     ## parsed data
@@ -416,10 +416,12 @@ class ULog(object):
         else:
             self._msg_info_multiple_dict[msg_info.key] = [[msg_info.value]]
 
-    def _load_file(self, file_name, message_name_filter_list):
+    def _load_file(self, file, message_name_filter_list):
         """ load and parse an ULog file into memory """
-        self.file_name = file_name
-        self._file_handle = open(file_name, "rb")
+        if isinstance(file, str):
+            self._file_handle = open(file, "rb")
+        else:
+            self._file_handle = file
 
         # parse the whole file
         self._read_file_header()
