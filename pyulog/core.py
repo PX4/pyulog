@@ -76,8 +76,9 @@ class ULog(object):
 
     def __init__(self, file, message_name_filter_list=None):
         """
-        Initialize the object & load the file from disk.
+        Initialize the object & load the file.
 
+        :param file: a file name (str) to load a file from disk or a readable file object
         :param message_name_filter_list: list of strings, to only load messages
                with the given names. If None, load everything.
         """
