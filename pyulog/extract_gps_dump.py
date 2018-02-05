@@ -24,9 +24,8 @@ def main():
         """Check if valid directory"""
         if not os.path.isdir(arg):
             parser.error('The directory {} does not exist'.format(arg))
-        else:
-            # File exists so return the directory
-            return arg
+        # File exists so return the directory
+        return arg
     parser.add_argument('-o', '--output', dest='output', action='store',
                         help='Output directory (default is CWD)',
                         metavar='DIR', type=lambda x: is_valid_directory(parser, x))

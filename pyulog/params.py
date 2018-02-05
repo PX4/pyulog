@@ -68,8 +68,8 @@ def main():
                 output_file.write('# rows: 1\n')
                 output_file.write('# columns: ')
                 output_file.write(str(len(values)) + '\n')
-                for i in range(0, len(values)):
-                    output_file.write(str(values[i]) + ' ')
+                for value in values:
+                    output_file.write(str(value) + ' ')
 
             else:
                 output_file.write('\n# type: scalar\n')
