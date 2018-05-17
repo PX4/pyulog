@@ -27,17 +27,15 @@ def main():
                         help="Use delimiter in CSV (default is ',')", default=',')
 
 
-    def is_valid_directory(parser, arg):
-        """Check if valid directory"""
-        if not os.path.isdir(arg):
-            parser.error('The directory {} does not exist'.format(arg))
-        # Directory exists so return the directory
-        return arg
     parser.add_argument('-o', '--output', dest='output', action='store',
                         help='Output directory (default is same as input file)',
-                        metavar='DIR', type=lambda x: is_valid_directory(parser, x))
+                        metavar='DIR')
 
     args = parser.parse_args()
+
+    if args.output and not os.path.isdir(args.output):
+        print('Creating output directory {:}'.format(args.output))
+        os.mkdir(args.output)
 
     convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter)
 
