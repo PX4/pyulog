@@ -186,8 +186,28 @@ optional arguments:
 
 ### Convert ULog to KML files (ulog2kml)
 
+> **Note** The `simplekml` module must be installed on your computer. If not already present, you can install it with:
+  ```
+  pip install simplekml
+  ```
 
 Usage:
 ```
+usage: ulog2kml [-h] [-o OUTPUT_FILENAME] [--topic TOPIC_NAME]
+                [--camera-trigger CAMERA_TRIGGER]
+                file.ulg
 
+Convert ULog to KML
+
+positional arguments:
+  file.ulg              ULog input file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUTPUT_FILENAME, --output OUTPUT_FILENAME
+                        output filename
+  --topic TOPIC_NAME    topic name with position data
+                        (default=vehicle_gps_position)
+  --camera-trigger CAMERA_TRIGGER
+                        Camera trigger topic name (e.g. camera_capture)
 ```
