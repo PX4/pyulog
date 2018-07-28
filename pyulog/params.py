@@ -33,7 +33,10 @@ def main():
     args = parser.parse_args()
     ulog_file_name = args.filename
 
-    ulog = ULog(ulog_file_name, [])
+    message_filter = []
+    if not args.initial: message_filter = None
+
+    ulog = ULog(ulog_file_name, message_filter)
 
     param_keys = sorted(ulog.initial_parameters.keys())
     delimiter = args.delimiter
