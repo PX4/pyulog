@@ -45,14 +45,28 @@ def main():
     if not args.octave:
         for param_key in param_keys:
             output_file.write(param_key)
-            output_file.write(delimiter)
-            output_file.write(str(ulog.initial_parameters[param_key]))
-            if not args.initial:
+            if args.initial:
+                output_file.write(delimiter)
+                output_file.write(str(ulog.initial_parameters[param_key]))
+                output_file.write('\n')
+            else:
+                output_file.write(delimiter)
+                output_file.write(str(ulog.initial_parameters[param_key]))
                 for t, name, value in ulog.changed_parameters:
                     if name == param_key:
                         output_file.write(delimiter)
                         output_file.write(str(value))
-            output_file.write('\n')
+
+                output_file.write('\n')
+                output_file.write("timestamp")
+                output_file.write(delimiter)
+                output_file.write('0')
+                for t, name, value in ulog.changed_parameters:
+                    if name == param_key:
+                        output_file.write(delimiter)
+                        output_file.write(str(t))
+
+                output_file.write('\n')
 
     else:
 
