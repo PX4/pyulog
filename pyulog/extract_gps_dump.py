@@ -43,7 +43,7 @@ def main():
         output_file_prefix = output_file_prefix[:-4]
 
     # write to different output path?
-    if args.output != None:
+    if args.output is not None:
         output_file_prefix = os.path.join(args.output, output_file_prefix)
 
     to_dev_filename = output_file_prefix+'_to_device.dat'
