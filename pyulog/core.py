@@ -85,6 +85,7 @@ class ULog(object):
 
         self._debug = False
 
+        self._file_corrupt = False
 
         self._start_timestamp = 0
         self._last_timestamp = 0
@@ -167,6 +168,11 @@ class ULog(object):
     def has_data_appended(self):
         """ returns True if the log has data appended, False otherwise """
         return self._incompat_flags[0] & 0x1
+
+    @property
+    def file_corruption(self):
+        """ True if a file corruption got detected """
+        return self._file_corrupt
 
 
     def get_dataset(self, name, multi_instance=0):
@@ -506,7 +512,12 @@ class ULog(object):
                     print('read_file_definitions: unknown message type: %i (%s)' %
                           (header.msg_type, chr(header.msg_type)))
                     file_position = self._file_handle.tell()
-                    print('file position: %i (0x%x)' % (file_position, file_position))
+                    print('file position: %i (0x%x) msg size: %i' % (
+                        file_position, file_position, header.msg_size))
+                if self._check_file_corruption(header):
+                    # seek back to advance only by a single byte instead of
+                    # skipping the message
+                    self._file_handle.seek(-2-header.msg_size, 1)
 
     def _read_file_data(self, message_name_filter_list, read_until=None):
         """
@@ -570,7 +581,13 @@ class ULog(object):
                         print('_read_file_data: unknown message type: %i (%s)' %
                               (header.msg_type, chr(header.msg_type)))
                         file_position = self._file_handle.tell()
-                        print('file position: %i (0x%x)' % (file_position, file_position))
+                        print('file position: %i (0x%x) msg size: %i' % (
+                            file_position, file_position, header.msg_size))
+
+                    if self._check_file_corruption(header):
+                        # seek back to advance only by a single byte instead of
+                        # skipping the message
+                        self._file_handle.seek(-2-header.msg_size, 1)
 
         except struct.error:
             pass #we read past the end of the file
@@ -582,6 +599,17 @@ class ULog(object):
                 data_item = ULog.Data(value)
                 self._data_list.append(data_item)
 
+    def _check_file_corruption(self, header):
+        """ check for file corruption based on an unknown message type in the header """
+        # We need to handle 2 cases:
+        # - corrupt file (we do our best to read the rest of the file)
+        # - new ULog message type got added (we just want to skip the message)
+        if header.msg_type == 0 or header.msg_size == 0 or header.msg_size > 10000:
+            if not self._file_corrupt and self._debug:
+                print('File corruption detected')
+            self._file_corrupt = True
+
+        return self._file_corrupt
 
     def get_version_info(self, key_name='ver_sw_release'):
         """
