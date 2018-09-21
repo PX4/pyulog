@@ -526,6 +526,7 @@ class ULog(object):
             while True:
                 data = self._file_handle.read(3)
                 header.initialize(data)
+                last_file_position = self._file_handle.tell()
                 data = self._file_handle.read(header.msg_size)
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
@@ -566,6 +567,7 @@ class ULog(object):
                                                       self._last_timestamp)
                     self._dropouts.append(msg_dropout)
                 else:
+                    self._file_handle.seek(last_file_position)
                     if self._debug:
                         print('_read_file_data: unknown message type: %i (%s)' %
                               (header.msg_type, chr(header.msg_type)))
