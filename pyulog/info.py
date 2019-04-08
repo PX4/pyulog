@@ -12,19 +12,8 @@ from .core import ULog
 #pylint: disable=too-many-locals, unused-wildcard-import, wildcard-import
 #pylint: disable=invalid-name
 
-
-def main():
-    """Commande line interface"""
-    parser = argparse.ArgumentParser(description='Display information from an ULog file')
-    parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        help='Verbose output', default=False)
-
-
-    args = parser.parse_args()
-    ulog_file_name = args.filename
-    ulog = ULog(ulog_file_name)
-
+def show_info(ulog, verbose):
+    """Show general information from an ULog"""
     m1, s1 = divmod(int(ulog.start_timestamp/1e6), 60)
     h1, m1 = divmod(m1, 60)
     m2, s2 = divmod(int((ulog.last_timestamp - ulog.start_timestamp)/1e6), 60)
@@ -47,12 +36,12 @@ def main():
 
     print("Info Messages:")
     for k in sorted(ulog.msg_info_dict):
-        if not k.startswith('perf_') or args.verbose:
+        if not k.startswith('perf_') or verbose:
             print(" {0}: {1}".format(k, ulog.msg_info_dict[k]))
 
 
     if len(ulog.msg_info_multiple_dict) > 0:
-        if args.verbose:
+        if verbose:
             print("Info Multiple Messages:")
             for k in sorted(ulog.msg_info_multiple_dict):
                 print(" {0}: {1}".format(k, ulog.msg_info_multiple_dict[k]))
@@ -74,4 +63,34 @@ def main():
         name_id = "{:} ({:}, {:})".format(d.name, d.multi_id, message_size)
         print(" {:<40} {:7d} {:10d}".format(name_id, num_data_points,
                                             message_size * num_data_points))
+
+
+def main():
+    """Commande line interface"""
+    parser = argparse.ArgumentParser(description='Display information from an ULog file')
+    parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        help='Verbose output', default=False)
+    parser.add_argument('-m', '--message', dest='message',
+                        help='Show a specific Info Multiple Message')
+    parser.add_argument('-n', '--newline', dest='newline', action='store_true',
+                        help='Add newline separators (only with --message)', default=False)
+
+
+    args = parser.parse_args()
+    ulog_file_name = args.filename
+    ulog = ULog(ulog_file_name)
+    message = args.message
+    if message:
+        separator = ""
+        if args.newline: separator = "\n"
+        if len(ulog.msg_info_multiple_dict) > 0 and message in ulog.msg_info_multiple_dict:
+            message_info_multiple = ulog.msg_info_multiple_dict[message]
+            for i, m in enumerate(message_info_multiple):
+                print("# {} {}:".format(message, i))
+                print(separator.join(m))
+        else:
+            print("message {} not found".format(message))
+    else:
+        show_info(ulog, args.verbose)
 
