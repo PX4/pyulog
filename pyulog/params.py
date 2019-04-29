@@ -25,7 +25,7 @@ def main():
 
     parser.add_argument('-o', '--octave', dest='octave', action='store_true',
                         help='Use Octave format', default=False)
-                        
+
     parser.add_argument('-t', '--timestamps', dest='timestamps', action='store_true',
                         help='Extract changed parameters with timestamps', default=False)
 
@@ -75,7 +75,7 @@ def main():
                     if name == param_key:
                         output_file.write(delimiter)
                         output_file.write(str(value))
-										
+
                 output_file.write('\n')
 
     else:
