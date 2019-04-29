@@ -25,6 +25,9 @@ def main():
 
     parser.add_argument('-o', '--octave', dest='octave', action='store_true',
                         help='Use Octave format', default=False)
+                        
+    parser.add_argument('-t', '--timestamps', dest='timestamps', action='store_true',
+                        help='Extract changed parameters with timestamps', default=False)
 
     parser.add_argument('output_filename', metavar='params.txt',
                         type=argparse.FileType('w'), nargs='?',
@@ -49,7 +52,7 @@ def main():
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 output_file.write('\n')
-            else:
+            elif args.timestamps:
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 for t, name, value in ulog.changed_parameters:
@@ -66,6 +69,13 @@ def main():
                         output_file.write(delimiter)
                         output_file.write(str(t))
 
+                output_file.write('\n')
+            else:
+                for t, name, value in ulog.changed_parameters:
+                    if name == param_key:
+                        output_file.write(delimiter)
+                        output_file.write(str(value))
+										
                 output_file.write('\n')
 
     else:
