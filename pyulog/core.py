@@ -29,19 +29,22 @@ class ULog(object):
 
     ## constants ##
     HEADER_BYTES = b'\x55\x4c\x6f\x67\x01\x12\x35'
+    SYNC_BYTES = b'\x2F\x73\x13\x20\x25\x0C\xBB\x12'
 
     # message types
-    MSG_TYPE_FORMAT = ord('F')
-    MSG_TYPE_DATA = ord('D')
-    MSG_TYPE_INFO = ord('I')
-    MSG_TYPE_INFO_MULTIPLE = ord('M')
-    MSG_TYPE_PARAMETER = ord('P')
-    MSG_TYPE_ADD_LOGGED_MSG = ord('A')
-    MSG_TYPE_REMOVE_LOGGED_MSG = ord('R')
-    MSG_TYPE_SYNC = ord('S')
-    MSG_TYPE_DROPOUT = ord('O')
-    MSG_TYPE_LOGGING = ord('L')
-    MSG_TYPE_FLAG_BITS = ord('B')
+    _MSG_TYPES = {
+        ord('F'): "FORMAT",
+        ord('D'): "DATA",
+        ord('I'): "INFO",
+        ord('M'): "INFO_MULTIPLE",
+        ord('P'): "PARAMETER",
+        ord('A'): "ADD_LOGGED_MSG",
+        ord('R'): "REMOVE_LOGGED_MSG",
+        ord('S'): "SYNC",
+        ord('O'): "DROPOUT",
+        ord('L'): "LOGGING",
+        ord('B'): "FLAG_BITS",
+        }
 
     _UNPACK_TYPES = {
         'int8_t':   ['b', 1, np.int8],
@@ -105,6 +108,7 @@ class ULog(object):
         self._compat_flags = [0] * 8
         self._incompat_flags = [0] * 8
         self._appended_offsets = [] # file offsets for appended data
+        self._has_sync = True # set to false when first file search for sync fails
 
         self._load_file(log_file, message_name_filter_list)
 
@@ -235,9 +239,17 @@ class ULog(object):
         def __init__(self):
             self.msg_size = 0
             self.msg_type = 0
+            self.msg_type_str = "UNKNOWN"
 
         def initialize(self, data):
             self.msg_size, self.msg_type = ULog._unpack_ushort_byte(data)
+            if (self.msg_type not in ULog._MSG_TYPES.keys()):
+                self.msg_type_str = "UNKNOWN"
+                print('unknown msg_type: 0x%x (%s) encountered' %
+                      (self.msg_type, chr(self.msg_type)))
+
+            else:
+                self.msg_type_str = ULog._MSG_TYPES[self.msg_type]
 
     class _MessageInfo(object):
         """ ULog info message representation """
@@ -469,23 +481,23 @@ class ULog(object):
                 break
             header.initialize(data)
             data = self._file_handle.read(header.msg_size)
-            if header.msg_type == self.MSG_TYPE_INFO:
+            if header.msg_type_str == "INFO":
                 msg_info = self._MessageInfo(data, header)
                 self._msg_info_dict[msg_info.key] = msg_info.value
-            elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
+            elif header.msg_type_str == "INFO_MULTIPLE":
                 msg_info = self._MessageInfo(data, header, is_info_multiple=True)
                 self._add_message_info_multiple(msg_info)
-            elif header.msg_type == self.MSG_TYPE_FORMAT:
+            elif header.msg_type_str == "FORMAT":
                 msg_format = self.MessageFormat(data, header)
                 self._message_formats[msg_format.name] = msg_format
-            elif header.msg_type == self.MSG_TYPE_PARAMETER:
+            elif header.msg_type_str == "PARAMETER":
                 msg_info = self._MessageInfo(data, header)
                 self._initial_parameters[msg_info.key] = msg_info.value
-            elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
-                  header.msg_type == self.MSG_TYPE_LOGGING):
+            elif (header.msg_type_str == "ADD_LOGGED_MSG" or
+                  header.msg_type_str == "LOGGING"):
                 self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
-            elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
+            elif header.msg_type_str == "FLAG_BITS":
                 # make sure this is the first message in the log
                 if self._file_handle.tell() != 16 + 3 + header.msg_size:
                     print('Error: FLAGS_BITS message must be first message. Offset:',
@@ -519,6 +531,43 @@ class ULog(object):
                     # skipping the message
                     self._file_handle.seek(-2-header.msg_size, 1)
 
+    def _find_sync(self):
+        """
+        read the file from current position until the end of sync_byte sequence is found,
+        if not, seek back to initial position.
+        return true if successful, else set _has_sync to false and return false
+        """
+        sync_seq_found = False
+        initial_file_position = self._file_handle.tell()
+
+        d = self._file_handle.read(1)
+        try:
+            while(True):
+                if (d[0] == ULog.SYNC_BYTES[0]):
+                    data = self._file_handle.read(7)
+                    if (data == ULog.SYNC_BYTES[1:]):
+                        sync_seq_found = True
+                        print("Found sync!")
+                        break
+
+                    else:
+                        # seek back 7 bytes and look for sync start again
+                        self._file_handle.seek(-7, 1)
+                d = self._file_handle.read(1)
+        except IndexError:
+            # Reached end of file
+            pass
+
+        if (not sync_seq_found):
+            print("Failed to find sync.")
+            self._has_sync = False
+            self._file_handle.seek(initial_file_position, 0)
+            return False
+
+        else:
+            return True
+
+
     def _read_file_data(self, message_name_filter_list, read_until=None):
         """
         read the file data section
@@ -537,6 +586,12 @@ class ULog(object):
             while True:
                 data = self._file_handle.read(3)
                 header.initialize(data)
+
+                # try recovery with sync sequence in case of unknown msg_type
+                if ((header.msg_type_str == "UNKNOWN") and self._has_sync):
+                    if self._find_sync():
+                        continue
+
                 data = self._file_handle.read(header.msg_size)
                 if len(data) < header.msg_size:
                     break # less data than expected. File is most likely cut
@@ -547,17 +602,17 @@ class ULog(object):
                               (read_until, self._file_handle.tell()))
                     break
 
-                if header.msg_type == self.MSG_TYPE_INFO:
+                if header.msg_type_str == "INFO":
                     msg_info = self._MessageInfo(data, header)
                     self._msg_info_dict[msg_info.key] = msg_info.value
-                elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
+                elif header.msg_type_str == "INFO_MULTIPLE":
                     msg_info = self._MessageInfo(data, header, is_info_multiple=True)
                     self._add_message_info_multiple(msg_info)
-                elif header.msg_type == self.MSG_TYPE_PARAMETER:
+                elif header.msg_type_str == "PARAMETER":
                     msg_info = self._MessageInfo(data, header)
                     self._changed_parameters.append((self._last_timestamp,
                                                      msg_info.key, msg_info.value))
-                elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
+                elif header.msg_type_str == "ADD_LOGGED_MSG":
                     msg_add_logged = self._MessageAddLogged(data, header,
                                                             self._message_formats)
                     if (message_name_filter_list is None or
@@ -565,14 +620,14 @@ class ULog(object):
                         self._subscriptions[msg_add_logged.msg_id] = msg_add_logged
                     else:
                         self._filtered_message_ids.add(msg_add_logged.msg_id)
-                elif header.msg_type == self.MSG_TYPE_LOGGING:
+                elif header.msg_type_str == "LOGGING":
                     msg_logging = self.MessageLogging(data, header)
                     self._logged_messages.append(msg_logging)
-                elif header.msg_type == self.MSG_TYPE_DATA:
+                elif header.msg_type_str == "DATA":
                     msg_data.initialize(data, header, self._subscriptions, self)
                     if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
                         self._last_timestamp = msg_data.timestamp
-                elif header.msg_type == self.MSG_TYPE_DROPOUT:
+                elif header.msg_type_str == "DROPOUT":
                     msg_dropout = self.MessageDropout(data, header,
                                                       self._last_timestamp)
                     self._dropouts.append(msg_dropout)
