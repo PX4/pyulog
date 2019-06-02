@@ -43,6 +43,7 @@ class ULog(object):
         ord('S'): "SYNC",
         ord('O'): "DROPOUT",
         ord('L'): "LOGGING",
+	ord('C'): "LOGGING_OBC",
         ord('B'): "FLAG_BITS",
         }
 
@@ -98,6 +99,7 @@ class ULog(object):
         self._changed_parameters = []
         self._message_formats = {}
         self._logged_messages = []
+        self._logged_messages_obc = {}
         self._dropouts = []
         self._data_list = []
 
@@ -158,6 +160,10 @@ class ULog(object):
         """ list of MessageLogging objects """
         return self._logged_messages
 
+    @property
+    def logged_messages_obc(self):
+        """ list of MessageLoggingObc objects """
+        return self._logged_messages_obc
     @property
     def dropouts(self):
         """ list of MessageDropout objects """
@@ -332,6 +338,25 @@ class ULog(object):
                     ord('6'): 'INFO',
                     ord('7'): 'DEBUG'}.get(self.log_level, 'UNKNOWN')
 
+    class MessageLoggingObc(object):
+        """ ULog logged string message representation from Onboard Computer """
+
+        def __init__(self, data, header):
+            self.log_level, = struct.unpack('<B', data[0:1])
+            self.tag = struct.unpack('<B', data[1:2])
+            self.timestamp, = struct.unpack('<Q', data[2:10])
+            self.message = _parse_string(data[10:])
+
+        def log_level_str(self):
+            return {ord('0'): 'EMERGENCY',
+                    ord('1'): 'ALERT',
+                    ord('2'): 'CRITICAL',
+                    ord('3'): 'ERROR',
+                    ord('4'): 'WARNING',
+                    ord('5'): 'NOTICE',
+                    ord('6'): 'INFO',
+                    ord('7'): 'DEBUG'}.get(self.log_level, 'UNKNOWN')
+
     class MessageDropout(object):
         """ ULog dropout message representation """
         def __init__(self, data, header, timestamp):
@@ -494,7 +519,8 @@ class ULog(object):
                 msg_info = self._MessageInfo(data, header)
                 self._initial_parameters[msg_info.key] = msg_info.value
             elif (header.msg_type_str == "ADD_LOGGED_MSG" or
-                  header.msg_type_str == "LOGGING"):
+                  header.msg_type_str == "LOGGING" or
+                  header.msg_type_str == "LOGGING_OBC"):
                 self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
             elif header.msg_type_str == "FLAG_BITS":
@@ -623,6 +649,12 @@ class ULog(object):
                 elif header.msg_type_str == "LOGGING":
                     msg_logging = self.MessageLogging(data, header)
                     self._logged_messages.append(msg_logging)
+                elif header.msg_type_str == "LOGGING_OBC":
+                    msg_logging_obc = self.MessageLoggingObc(data, header)
+                    if msg_logging_obc.tag in self._logged_messages_obc.keys():
+                        self._logged_messages_obc[msg_logging_obc.tag].append(msg_logging_obc)
+                    else:
+                        self._logged_messages_obc[msg_logging_obc.tag] = [msg_logging_obc]
                 elif header.msg_type_str == "DATA":
                     msg_data.initialize(data, header, self._subscriptions, self)
                     if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
