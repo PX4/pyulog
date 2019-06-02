@@ -250,7 +250,7 @@ class ULog(object):
 
         def initialize(self, data):
             self.msg_size, self.msg_type = ULog._unpack_ushort_byte(data)
-            if (self.msg_type not in ULog._MSG_TYPES.keys()):
+            if self.msg_type not in ULog._MSG_TYPES.keys():
                 self.msg_type_str = "UNKNOWN"
                 print('unknown msg_type: 0x%x (%s) encountered' %
                       (self.msg_type, chr(self.msg_type)))
@@ -567,12 +567,12 @@ class ULog(object):
         sync_seq_found = False
         initial_file_position = self._file_handle.tell()
 
-        d = self._file_handle.read(1)
+        sync_start = self._file_handle.read(1)
         try:
-            while(True):
-                if (d[0] == ULog.SYNC_BYTES[0]):
+            while True:
+                if sync_start[0] == ULog.SYNC_BYTES[0]:
                     data = self._file_handle.read(7)
-                    if (data == ULog.SYNC_BYTES[1:]):
+                    if data == ULog.SYNC_BYTES[1:]:
                         sync_seq_found = True
                         print("Found sync!")
                         break
@@ -580,20 +580,17 @@ class ULog(object):
                     else:
                         # seek back 7 bytes and look for sync start again
                         self._file_handle.seek(-7, 1)
-                d = self._file_handle.read(1)
+                sync_start = self._file_handle.read(1)
         except IndexError:
             # Reached end of file
             print("_find_sync(): reached EOF")
 
-        if (not sync_seq_found):
+        if not sync_seq_found:
             print("Failed to find sync.")
             self._has_sync = False
             self._file_handle.seek(initial_file_position, 0)
-            return False
 
-        else:
-            return True
-
+        return sync_seq_found
 
     def _read_file_data(self, message_name_filter_list, read_until=None):
         """
