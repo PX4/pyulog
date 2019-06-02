@@ -15,7 +15,7 @@ __author__ = "Beat Kueng"
 if sys.hexversion >= 0x030000F0:
     _RUNNING_PYTHON3 = True
     def _parse_string(cstr):
-        return str(cstr, 'ascii')
+        return str(cstr, 'utf-8', 'ignore')
 else:
     _RUNNING_PYTHON3 = False
     def _parse_string(cstr):
@@ -43,7 +43,7 @@ class ULog(object):
         ord('S'): "SYNC",
         ord('O'): "DROPOUT",
         ord('L'): "LOGGING",
-	ord('C'): "LOGGING_OBC",
+        ord('C'): "LOGGING_OBC",
         ord('B'): "FLAG_BITS",
         }
 
@@ -164,6 +164,7 @@ class ULog(object):
     def logged_messages_obc(self):
         """ list of MessageLoggingObc objects """
         return self._logged_messages_obc
+
     @property
     def dropouts(self):
         """ list of MessageDropout objects """
@@ -582,7 +583,7 @@ class ULog(object):
                 d = self._file_handle.read(1)
         except IndexError:
             # Reached end of file
-            pass
+            print("_find_sync(): reached EOF")
 
         if (not sync_seq_found):
             print("Failed to find sync.")
