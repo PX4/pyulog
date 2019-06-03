@@ -162,7 +162,7 @@ class ULog(object):
 
     @property
     def logged_messages_tagged(self):
-        """ list of MessageLoggingTagged objects """
+        """ dict of MessageLoggingTagged objects """
         return self._logged_messages_tagged
 
     @property
