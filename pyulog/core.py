@@ -41,6 +41,7 @@ class ULog(object):
     MSG_TYPE_SYNC = ord('S')
     MSG_TYPE_DROPOUT = ord('O')
     MSG_TYPE_LOGGING = ord('L')
+    MSG_TYPE_LOGGING_TAGGED = ord('C')
     MSG_TYPE_FLAG_BITS = ord('B')
 
     _UNPACK_TYPES = {
@@ -95,6 +96,7 @@ class ULog(object):
         self._changed_parameters = []
         self._message_formats = {}
         self._logged_messages = []
+        self._logged_messages_tagged = {}
         self._dropouts = []
         self._data_list = []
 
@@ -153,6 +155,11 @@ class ULog(object):
     def logged_messages(self):
         """ list of MessageLogging objects """
         return self._logged_messages
+
+    @property
+    def logged_messages_tagged(self):
+        """ dict of MessageLoggingTagged objects """
+        return self._logged_messages_tagged
 
     @property
     def dropouts(self):
@@ -309,6 +316,25 @@ class ULog(object):
             self.log_level, = struct.unpack('<B', data[0:1])
             self.timestamp, = struct.unpack('<Q', data[1:9])
             self.message = _parse_string(data[9:])
+
+        def log_level_str(self):
+            return {ord('0'): 'EMERGENCY',
+                    ord('1'): 'ALERT',
+                    ord('2'): 'CRITICAL',
+                    ord('3'): 'ERROR',
+                    ord('4'): 'WARNING',
+                    ord('5'): 'NOTICE',
+                    ord('6'): 'INFO',
+                    ord('7'): 'DEBUG'}.get(self.log_level, 'UNKNOWN')
+
+    class MessageLoggingTagged(object):
+        """ ULog tagged log string message representation """
+
+        def __init__(self, data, header):
+            self.log_level, = struct.unpack('<B', data[0:1])
+            self.tag = struct.unpack('<B', data[1:2])
+            self.timestamp, = struct.unpack('<Q', data[2:10])
+            self.message = _parse_string(data[10:])
 
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
@@ -482,7 +508,8 @@ class ULog(object):
                 msg_info = self._MessageInfo(data, header)
                 self._initial_parameters[msg_info.key] = msg_info.value
             elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
-                  header.msg_type == self.MSG_TYPE_LOGGING):
+                  header.msg_type == self.MSG_TYPE_LOGGING or
+                  header.msg_type == self.MSG_TYPE_LOGGING_TAGGED):
                 self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
             elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
@@ -568,6 +595,12 @@ class ULog(object):
                 elif header.msg_type == self.MSG_TYPE_LOGGING:
                     msg_logging = self.MessageLogging(data, header)
                     self._logged_messages.append(msg_logging)
+                elif header.msg_type == self.MSG_TYPE_LOGGING_TAGGED:
+                    msg_logging_tagged = self.MessageLoggingTagged(data, header)
+                    if msg_logging_tagged.tag in self._logged_messages_tagged.keys():
+                        self._logged_messages_tagged[msg_logging_tagged.tag].append(msg_logging_tagged)
+                    else:
+                        self._logged_messages_tagged[msg_logging_tagged.tag] = [msg_logging_tagged]
                 elif header.msg_type == self.MSG_TYPE_DATA:
                     msg_data.initialize(data, header, self._subscriptions, self)
                     if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
