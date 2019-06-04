@@ -14,8 +14,8 @@ __author__ = "Beat Kueng"
 # check python version
 if sys.hexversion >= 0x030000F0:
     _RUNNING_PYTHON3 = True
-    def _parse_string(cstr):
-        return str(cstr, 'ascii')
+    def _parse_string(cstr, errors='strict'):
+        return str(cstr, 'utf-8', errors)
 else:
     _RUNNING_PYTHON3 = False
     def _parse_string(cstr):
@@ -73,14 +73,28 @@ class ULog(object):
     _unpack_ushort = struct.Struct('<H').unpack
     _unpack_uint64 = struct.Struct('<Q').unpack
 
+    # when set to True disables string parsing exceptions
+    _disable_str_exceptions = False
 
-    def __init__(self, log_file, message_name_filter_list=None):
+    @staticmethod
+    def parse_string(cstr):
+        """
+        wrapper for _parse_string with
+        parametrized exception handling
+        """
+        if _RUNNING_PYTHON3 and ULog._disable_str_exceptions:
+            return _parse_string(cstr, 'ignore')
+        else:
+            return _parse_string(cstr)
+
+    def __init__(self, log_file, message_name_filter_list=None, disable_str_exceptions=True):
         """
         Initialize the object & load the file.
 
         :param log_file: a file name (str) or a readable file object
         :param message_name_filter_list: list of strings, to only load messages
                with the given names. If None, load everything.
+        :param disable_str_parser_exceptions: If True, ignore string parsing errors
         """
 
         self._debug = False
@@ -105,6 +119,7 @@ class ULog(object):
         self._compat_flags = [0] * 8
         self._incompat_flags = [0] * 8
         self._appended_offsets = [] # file offsets for appended data
+        ULog._disable_str_exceptions = disable_str_exceptions
 
         self._load_file(log_file, message_name_filter_list)
 
@@ -247,12 +262,12 @@ class ULog(object):
                 self.is_continued, = struct.unpack('<B', data[0:1])
                 data = data[1:]
             key_len, = struct.unpack('<B', data[0:1])
-            type_key = _parse_string(data[1:1+key_len])
+            type_key = ULog.parse_string(data[1:1+key_len])
             type_key_split = type_key.split(' ')
             self.type = type_key_split[0]
             self.key = type_key_split[1]
             if self.type.startswith('char['): # it's a string
-                self.value = _parse_string(data[1+key_len:])
+                self.value = ULog.parse_string(data[1+key_len:])
             elif self.type in ULog._UNPACK_TYPES:
                 unpack_type = ULog._UNPACK_TYPES[self.type]
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
@@ -279,7 +294,7 @@ class ULog(object):
         """ ULog message format representation """
 
         def __init__(self, data, header):
-            format_arr = _parse_string(data).split(':')
+            format_arr = ULog.parse_string(data).split(':')
             self.name = format_arr[0]
             types_str = format_arr[1].split(';')
             self.fields = [] # list of tuples (type, array_size, name)
@@ -308,7 +323,7 @@ class ULog(object):
         def __init__(self, data, header):
             self.log_level, = struct.unpack('<B', data[0:1])
             self.timestamp, = struct.unpack('<Q', data[1:9])
-            self.message = _parse_string(data[9:])
+            self.message = ULog.parse_string(data[9:])
 
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
@@ -337,7 +352,7 @@ class ULog(object):
         def __init__(self, data, header, message_formats):
             self.multi_id, = struct.unpack('<B', data[0:1])
             self.msg_id, = struct.unpack('<H', data[1:3])
-            self.message_name = _parse_string(data[3:])
+            self.message_name = ULog.parse_string(data[3:])
             self.field_data = [] # list of _FieldData
             self.timestamp_idx = -1
             self._parse_format(message_formats)
