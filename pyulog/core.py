@@ -82,10 +82,12 @@ class ULog(object):
         wrapper for _parse_string with
         parametrized exception handling
         """
+        ret = ''
         if _RUNNING_PYTHON3 and ULog._disable_str_exceptions:
-            return _parse_string(cstr, 'ignore')
+            ret = _parse_string(cstr, 'ignore')
         else:
-            return _parse_string(cstr)
+            ret = _parse_string(cstr)
+        return ret
 
     def __init__(self, log_file, message_name_filter_list=None, disable_str_exceptions=True):
         """
