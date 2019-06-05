@@ -540,7 +540,8 @@ class ULog(object):
         initial_file_position = self._file_handle.tell()
         sync_start = self._file_handle.read(1)
         try:
-            while max_bytes_skipped == -1 or (self._file_handle.tell() - initial_file_position < max_bytes_skipped):
+            while max_bytes_skipped == -1 or\
+             (self._file_handle.tell() - initial_file_position < max_bytes_skipped):
                 if sync_start[0] == ULog.SYNC_BYTES[0]:
                     data = self._file_handle.read(7)
                     if data == ULog.SYNC_BYTES[1:]:
