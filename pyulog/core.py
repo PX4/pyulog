@@ -245,9 +245,6 @@ class ULog(object):
             self.msg_size, self.msg_type = ULog._unpack_ushort_byte(data)
             if self.msg_type not in ULog._MSG_TYPES.keys():
                 self.msg_type_str = "UNKNOWN"
-                print('unknown msg_type: 0x%x (%s) encountered' %
-                      (self.msg_type, chr(self.msg_type)))
-
             else:
                 self.msg_type_str = ULog._MSG_TYPES[self.msg_type]
 
@@ -531,23 +528,25 @@ class ULog(object):
                     # skipping the message
                     self._file_handle.seek(-2-header.msg_size, 1)
 
-    def _find_sync(self):
+    def _find_sync(self, max_bytes_skipped=-1):
         """
-        read the file from current position until the end of sync_byte sequence is found,
-        if not, seek back to initial position.
-        return true if successful, else set _has_sync to false and return false
+        read the file from current position until the end of sync_byte sequence is found
+            or the number of bytes skipped is greater than or equal to max_bytes_skipped param
+        :param max_bytes_skipped: optional arg to limit max number of bytes that are searched
+        return true if successful, else return false and seek back to initial position and
+            set _has_sync to false if searched full file
         """
         sync_seq_found = False
         initial_file_position = self._file_handle.tell()
-
         sync_start = self._file_handle.read(1)
         try:
-            while True:
+            while max_bytes_skipped == -1 or (self._file_handle.tell() - initial_file_position < max_bytes_skipped):
                 if sync_start[0] == ULog.SYNC_BYTES[0]:
                     data = self._file_handle.read(7)
                     if data == ULog.SYNC_BYTES[1:]:
                         sync_seq_found = True
-                        print("Found sync!")
+                        if self._debug:
+                            print("Found sync!")
                         break
 
                     else:
@@ -556,12 +555,19 @@ class ULog(object):
                 sync_start = self._file_handle.read(1)
         except IndexError:
             # Reached end of file
-            print("_find_sync(): reached EOF")
+            if self._debug:
+                print("_find_sync(): reached EOF")
 
         if not sync_seq_found:
-            print("Failed to find sync.")
-            self._has_sync = False
             self._file_handle.seek(initial_file_position, 0)
+
+            if max_bytes_skipped == -1:
+                self._has_sync = False
+                if self._debug:
+                    print("Failed to find sync in file from %i" % initial_file_position)
+        else:
+            # declare file corrupt if we skipped bytes to sync sequence
+            self._file_corrupt = True
 
         return sync_seq_found
 
@@ -583,9 +589,9 @@ class ULog(object):
             while True:
                 data = self._file_handle.read(3)
                 header.initialize(data)
-                # try recovery with sync sequence in case of unknown msg_type
+                # look for sync sequence in payload in case of unknown msg_type
                 if ((header.msg_type_str == "UNKNOWN") and self._has_sync):
-                    if self._find_sync():
+                    if self._find_sync(header.msg_size):
                         continue
                 data = self._file_handle.read(header.msg_size)
                 if len(data) < header.msg_size:
@@ -638,6 +644,10 @@ class ULog(object):
                         # seek back to advance only by a single byte instead of
                         # skipping the message
                         self._file_handle.seek(-2-header.msg_size, 1)
+
+                        # try recovery with sync sequence in case of unknown msg_type
+                        if self._has_sync:
+                            self._find_sync()
 
         except struct.error:
             pass #we read past the end of the file
