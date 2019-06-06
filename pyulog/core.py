@@ -596,11 +596,11 @@ class ULog(object):
                     msg_logging = self.MessageLogging(data, header)
                     self._logged_messages.append(msg_logging)
                 elif header.msg_type == self.MSG_TYPE_LOGGING_TAGGED:
-                    msg_logging_tagged = self.MessageLoggingTagged(data, header)
-                    if msg_logging_tagged.tag in self._logged_messages_tagged.keys():
-                        self._logged_messages_tagged[msg_logging_tagged.tag].append(msg_logging_tagged)
+                    msg_log_tagged = self.MessageLoggingTagged(data, header)
+                    if msg_log_tagged.tag in self._logged_messages_tagged:
+                        self._logged_messages_tagged[msg_log_tagged.tag].append(msg_log_tagged)
                     else:
-                        self._logged_messages_tagged[msg_logging_tagged.tag] = [msg_logging_tagged]
+                        self._logged_messages_tagged[msg_log_tagged.tag] = [msg_log_tagged]
                 elif header.msg_type == self.MSG_TYPE_DATA:
                     msg_data.initialize(data, header, self._subscriptions, self)
                     if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
