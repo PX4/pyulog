@@ -613,9 +613,8 @@ class ULog(object):
                     if self._debug:
                         print('_read_file_data: unknown message type: %i (%s)' %
                               (header.msg_type, chr(header.msg_type)))
-                        file_position = self._file_handle.tell()
-                        print('file position: %i (0x%x) msg size: %i' % (
-                            file_position, file_position, header.msg_size))
+                        print('file position: %i msg size: %i' % (
+                            self._file_handle.tell(), header.msg_size))
 
                     if self._check_file_corruption(header):
                         # seek back to advance only by a single byte instead of
