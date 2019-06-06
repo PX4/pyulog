@@ -33,7 +33,7 @@ def main():
                         type=argparse.FileType('w'), nargs='?',
                         help='Output filename (default=stdout)', default=sys.stdout)
 
-    parser.add_argument('-g', '--ignore', dest='ignore', action='store_true',
+    parser.add_argument('--ignore', dest='ignore', action='store_true',
                         help='Ignore string parsing exceptions', default=False)
 
     args = parser.parse_args()
