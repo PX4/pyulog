@@ -30,6 +30,8 @@ def main():
     parser.add_argument('-o', '--output', dest='output', action='store',
                         help='Output directory (default is same as input file)',
                         metavar='DIR')
+    parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
+                        help='Ignore string parsing exceptions', default=False)
 
     args = parser.parse_args()
 
@@ -37,10 +39,10 @@ def main():
         print('Creating output directory {:}'.format(args.output))
         os.mkdir(args.output)
 
-    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter)
+    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.ignore)
 
 
-def convert_ulog2csv(ulog_file_name, messages, output, delimiter):
+def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_exceptions):
     """
     Coverts and ULog file to a CSV file.
 
@@ -54,7 +56,7 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter):
 
     msg_filter = messages.split(',') if messages else None
 
-    ulog = ULog(ulog_file_name, msg_filter)
+    ulog = ULog(ulog_file_name, msg_filter, disable_str_exceptions)
     data = ulog.data_list
 
     output_file_prefix = ulog_file_name

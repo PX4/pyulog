@@ -29,12 +29,15 @@ def main():
     parser.add_argument('--camera-trigger', dest='camera_trigger',
                         help="Camera trigger topic name (e.g. camera_capture)",
                         default=None)
+    parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
+                        help='Ignore string parsing exceptions', default=False)
 
     args = parser.parse_args()
 
     convert_ulog2kml(args.filename, args.output_filename,
                      position_topic_name=args.topic_name,
-                     camera_trigger_topic_name=args.camera_trigger)
+                     camera_trigger_topic_name=args.camera_trigger,
+                     disable_str_exceptions=args.ignore)
 
     # alternative example call:
 #    convert_ulog2kml(args.filename, 'test.kml', ['vehicle_global_position',
@@ -54,7 +57,8 @@ def _kml_default_colors(x):
 
 def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
                      'vehicle_gps_position', colors=_kml_default_colors, altitude_offset=0,
-                     minimum_interval_s=0.1, style=None, camera_trigger_topic_name=None):
+                     minimum_interval_s=0.1, style=None, camera_trigger_topic_name=None,
+                     disable_str_exceptions=False):
     """
     Coverts and ULog file to a CSV file.
 
@@ -96,7 +100,7 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
     load_topic_names = position_topic_name + ['vehicle_status']
     if camera_trigger_topic_name is not None:
         load_topic_names.append(camera_trigger_topic_name)
-    ulog = ULog(ulog_file_name, load_topic_names)
+    ulog = ULog(ulog_file_name, load_topic_names, disable_str_exceptions)
 
     # get flight modes
     try:
