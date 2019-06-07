@@ -42,7 +42,7 @@ def main():
     convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.ignore)
 
 
-def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_exceptions):
+def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_exceptions=False):
     """
     Coverts and ULog file to a CSV file.
 
