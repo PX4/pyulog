@@ -33,13 +33,17 @@ def main():
                         type=argparse.FileType('w'), nargs='?',
                         help='Output filename (default=stdout)', default=sys.stdout)
 
+    parser.add_argument('--ignore', dest='ignore', action='store_true',
+                        help='Ignore string parsing exceptions', default=False)
+
     args = parser.parse_args()
     ulog_file_name = args.filename
+    disable_str_exceptions = args.ignore
 
     message_filter = []
     if not args.initial: message_filter = None
 
-    ulog = ULog(ulog_file_name, message_filter)
+    ulog = ULog(ulog_file_name, message_filter, disable_str_exceptions)
 
     param_keys = sorted(ulog.initial_parameters.keys())
     delimiter = args.delimiter

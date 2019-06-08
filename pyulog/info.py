@@ -75,11 +75,14 @@ def main():
                         help='Show a specific Info Multiple Message')
     parser.add_argument('-n', '--newline', dest='newline', action='store_true',
                         help='Add newline separators (only with --message)', default=False)
+    parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
+                        help='Ignore string parsing exceptions', default=False)
 
 
     args = parser.parse_args()
     ulog_file_name = args.filename
-    ulog = ULog(ulog_file_name)
+    disable_str_exceptions = args.ignore
+    ulog = ULog(ulog_file_name, None, disable_str_exceptions)
     message = args.message
     if message:
         separator = ""

@@ -15,13 +15,15 @@ def main():
 
     parser = argparse.ArgumentParser(description='Display logged messages from an ULog file')
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
-
+    parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
+                        help='Ignore string parsing exceptions', default=False)
 
     args = parser.parse_args()
     ulog_file_name = args.filename
+    disable_str_exceptions = args.ignore
 
     msg_filter = [] # we don't need the data messages
-    ulog = ULog(ulog_file_name, msg_filter)
+    ulog = ULog(ulog_file_name, msg_filter, disable_str_exceptions)
 
 
     for m in ulog.logged_messages:
