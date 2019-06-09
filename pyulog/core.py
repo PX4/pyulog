@@ -355,7 +355,7 @@ class ULog(object):
             self.log_level, = struct.unpack('<B', data[0:1])
             self.tag = struct.unpack('<H', data[1:3])
             self.timestamp, = struct.unpack('<Q', data[3:11])
-            self.message = _parse_string(data[11:])
+            self.message = ULog.parse_string(data[11:])
 
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
