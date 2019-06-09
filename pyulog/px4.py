@@ -58,11 +58,11 @@ class PX4ULog(object):
         if mav_type == 1: # fixed wing always uses EKF2
             return 'EKF2'
 
-        mc_est_group = self._ulog.initial_parameters.get('SYS_MC_EST_GROUP', None)
+        mc_est_group = self._ulog.initial_parameters.get('SYS_MC_EST_GROUP', 2)
         return {0: 'INAV',
                 1: 'LPE',
                 2: 'EKF2',
-                3: 'IEKF'}.get(mc_est_group, 'unknown ({})'.format(mc_est_group))
+                3: 'Q'}.get(mc_est_group, 'unknown ({})'.format(mc_est_group))
 
 
     def add_roll_pitch_yaw(self):

@@ -29,12 +29,15 @@ def main():
     parser.add_argument('-o', '--output', dest='output', action='store',
                         help='Output directory (default is CWD)',
                         metavar='DIR', type=lambda x: is_valid_directory(parser, x))
+    parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
+                        help='Ignore string parsing exceptions', default=False)
 
     args = parser.parse_args()
     ulog_file_name = args.filename
+    disable_str_exceptions = args.ignore
 
     msg_filter = ['gps_dump']
-    ulog = ULog(ulog_file_name, msg_filter)
+    ulog = ULog(ulog_file_name, msg_filter, disable_str_exceptions)
     data = ulog.data_list
 
     output_file_prefix = os.path.basename(ulog_file_name)

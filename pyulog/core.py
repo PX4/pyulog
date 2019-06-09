@@ -14,8 +14,8 @@ __author__ = "Beat Kueng"
 # check python version
 if sys.hexversion >= 0x030000F0:
     _RUNNING_PYTHON3 = True
-    def _parse_string(cstr):
-        return str(cstr, 'ascii')
+    def _parse_string(cstr, errors='strict'):
+        return str(cstr, 'utf-8', errors)
 else:
     _RUNNING_PYTHON3 = False
     def _parse_string(cstr):
@@ -42,6 +42,7 @@ class ULog(object):
     MSG_TYPE_SYNC = ord('S')
     MSG_TYPE_DROPOUT = ord('O')
     MSG_TYPE_LOGGING = ord('L')
+    MSG_TYPE_LOGGING_TAGGED = ord('C')
     MSG_TYPE_FLAG_BITS = ord('B')
 
     _UNPACK_TYPES = {
@@ -74,14 +75,30 @@ class ULog(object):
     _unpack_ushort = struct.Struct('<H').unpack
     _unpack_uint64 = struct.Struct('<Q').unpack
 
+    # when set to True disables string parsing exceptions
+    _disable_str_exceptions = False
 
-    def __init__(self, log_file, message_name_filter_list=None):
+    @staticmethod
+    def parse_string(cstr):
+        """
+        wrapper for _parse_string with
+        parametrized exception handling
+        """
+        ret = ''
+        if _RUNNING_PYTHON3 and ULog._disable_str_exceptions:
+            ret = _parse_string(cstr, 'ignore')
+        else:
+            ret = _parse_string(cstr)
+        return ret
+
+    def __init__(self, log_file, message_name_filter_list=None, disable_str_exceptions=True):
         """
         Initialize the object & load the file.
 
         :param log_file: a file name (str) or a readable file object
         :param message_name_filter_list: list of strings, to only load messages
                with the given names. If None, load everything.
+        :param disable_str_parser_exceptions: If True, ignore string parsing errors
         """
 
         self._debug = False
@@ -96,6 +113,7 @@ class ULog(object):
         self._changed_parameters = []
         self._message_formats = {}
         self._logged_messages = []
+        self._logged_messages_tagged = {}
         self._dropouts = []
         self._data_list = []
 
@@ -108,6 +126,8 @@ class ULog(object):
         self._appended_offsets = [] # file offsets for appended data
         self._has_sync = True # set to false when first file search for sync fails
         self._sync_seq_cnt = 0 # number of sync packets found in file
+
+        ULog._disable_str_exceptions = disable_str_exceptions
 
         self._load_file(log_file, message_name_filter_list)
 
@@ -156,6 +176,11 @@ class ULog(object):
     def logged_messages(self):
         """ list of MessageLogging objects """
         return self._logged_messages
+
+    @property
+    def logged_messages_tagged(self):
+        """ dict of MessageLoggingTagged objects """
+        return self._logged_messages_tagged
 
     @property
     def dropouts(self):
@@ -250,12 +275,12 @@ class ULog(object):
                 self.is_continued, = struct.unpack('<B', data[0:1])
                 data = data[1:]
             key_len, = struct.unpack('<B', data[0:1])
-            type_key = _parse_string(data[1:1+key_len])
+            type_key = ULog.parse_string(data[1:1+key_len])
             type_key_split = type_key.split(' ')
             self.type = type_key_split[0]
             self.key = type_key_split[1]
             if self.type.startswith('char['): # it's a string
-                self.value = _parse_string(data[1+key_len:])
+                self.value = ULog.parse_string(data[1+key_len:])
             elif self.type in ULog._UNPACK_TYPES:
                 unpack_type = ULog._UNPACK_TYPES[self.type]
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
@@ -282,7 +307,7 @@ class ULog(object):
         """ ULog message format representation """
 
         def __init__(self, data, header):
-            format_arr = _parse_string(data).split(':')
+            format_arr = ULog.parse_string(data).split(':')
             self.name = format_arr[0]
             types_str = format_arr[1].split(';')
             self.fields = [] # list of tuples (type, array_size, name)
@@ -311,7 +336,26 @@ class ULog(object):
         def __init__(self, data, header):
             self.log_level, = struct.unpack('<B', data[0:1])
             self.timestamp, = struct.unpack('<Q', data[1:9])
-            self.message = _parse_string(data[9:])
+            self.message = ULog.parse_string(data[9:])
+
+        def log_level_str(self):
+            return {ord('0'): 'EMERGENCY',
+                    ord('1'): 'ALERT',
+                    ord('2'): 'CRITICAL',
+                    ord('3'): 'ERROR',
+                    ord('4'): 'WARNING',
+                    ord('5'): 'NOTICE',
+                    ord('6'): 'INFO',
+                    ord('7'): 'DEBUG'}.get(self.log_level, 'UNKNOWN')
+
+    class MessageLoggingTagged(object):
+        """ ULog tagged log string message representation """
+
+        def __init__(self, data, header):
+            self.log_level, = struct.unpack('<B', data[0:1])
+            self.tag = struct.unpack('<H', data[1:3])
+            self.timestamp, = struct.unpack('<Q', data[3:11])
+            self.message = _parse_string(data[11:])
 
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
@@ -340,7 +384,7 @@ class ULog(object):
         def __init__(self, data, header, message_formats):
             self.multi_id, = struct.unpack('<B', data[0:1])
             self.msg_id, = struct.unpack('<H', data[1:3])
-            self.message_name = _parse_string(data[3:])
+            self.message_name = ULog.parse_string(data[3:])
             self.field_data = [] # list of _FieldData
             self.timestamp_idx = -1
             self._parse_format(message_formats)
@@ -485,7 +529,8 @@ class ULog(object):
                 msg_info = self._MessageInfo(data, header)
                 self._initial_parameters[msg_info.key] = msg_info.value
             elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
-                  header.msg_type == self.MSG_TYPE_LOGGING):
+                  header.msg_type == self.MSG_TYPE_LOGGING or
+                  header.msg_type == self.MSG_TYPE_LOGGING_TAGGED):
                 self._file_handle.seek(-(3+header.msg_size), 1)
                 break # end of section
             elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
@@ -626,6 +671,12 @@ class ULog(object):
                 elif header.msg_type == self.MSG_TYPE_LOGGING:
                     msg_logging = self.MessageLogging(data, header)
                     self._logged_messages.append(msg_logging)
+                elif header.msg_type == self.MSG_TYPE_LOGGING_TAGGED:
+                    msg_log_tagged = self.MessageLoggingTagged(data, header)
+                    if msg_log_tagged.tag in self._logged_messages_tagged:
+                        self._logged_messages_tagged[msg_log_tagged.tag].append(msg_log_tagged)
+                    else:
+                        self._logged_messages_tagged[msg_log_tagged.tag] = [msg_log_tagged]
                 elif header.msg_type == self.MSG_TYPE_DATA:
                     msg_data.initialize(data, header, self._subscriptions, self)
                     if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
@@ -640,9 +691,8 @@ class ULog(object):
                     if self._debug:
                         print('_read_file_data: unknown message type: %i (%s)' %
                               (header.msg_type, chr(header.msg_type)))
-                        file_position = self._file_handle.tell()
-                        print('file position: %i (0x%x) msg size: %i' % (
-                            file_position, file_position, header.msg_size))
+                        print('file position: %i msg size: %i' % (
+                            self._file_handle.tell(), header.msg_size))
 
                     if self._check_packet_corruption(header):
                         # seek back to advance only by a single byte instead of
