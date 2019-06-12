@@ -29,6 +29,7 @@ class ULog(object):
 
     ## constants ##
     HEADER_BYTES = b'\x55\x4c\x6f\x67\x01\x12\x35'
+    SYNC_BYTES = b'\x2F\x73\x13\x20\x25\x0C\xBB\x12'
 
     # message types
     MSG_TYPE_FORMAT = ord('F')
@@ -123,6 +124,9 @@ class ULog(object):
         self._compat_flags = [0] * 8
         self._incompat_flags = [0] * 8
         self._appended_offsets = [] # file offsets for appended data
+        self._has_sync = True # set to false when first file search for sync fails
+        self._sync_seq_cnt = 0 # number of sync packets found in file
+
         ULog._disable_str_exceptions = disable_str_exceptions
 
         self._load_file(log_file, message_name_filter_list)
@@ -351,7 +355,7 @@ class ULog(object):
             self.log_level, = struct.unpack('<B', data[0:1])
             self.tag = struct.unpack('<H', data[1:3])
             self.timestamp, = struct.unpack('<Q', data[3:11])
-            self.message = _parse_string(data[11:])
+            self.message = ULog.parse_string(data[11:])
 
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
@@ -558,10 +562,65 @@ class ULog(object):
                     file_position = self._file_handle.tell()
                     print('file position: %i (0x%x) msg size: %i' % (
                         file_position, file_position, header.msg_size))
-                if self._check_file_corruption(header):
+                if self._check_packet_corruption(header):
                     # seek back to advance only by a single byte instead of
                     # skipping the message
                     self._file_handle.seek(-2-header.msg_size, 1)
+
+    def _find_sync(self, last_n_bytes=-1):
+        """
+        read the file from a given location until the end of sync_byte sequence is found
+            or an end condition is met(reached EOF or searched all last_n_bytes).
+        :param last_n_bytes: optional arg to search only last_n_bytes for sync_bytes.
+            when provided, _find_sync searches for sync_byte sequence in the last_n_bytes
+            from current location, else, from current location till end of file.
+        return true if successful, else return false and seek back to initial position and
+            set _has_sync to false if searched till end of file
+        """
+        sync_seq_found = False
+        initial_file_position = self._file_handle.tell()
+
+        if last_n_bytes != -1:
+            self._file_handle.seek(-last_n_bytes, 1)
+
+        sync_start = self._file_handle.read(1)
+        try:
+            while last_n_bytes == -1 or\
+             (self._file_handle.tell() < initial_file_position):
+                if sync_start[0] == ULog.SYNC_BYTES[0]:
+                    data = self._file_handle.read(7)
+                    if data == ULog.SYNC_BYTES[1:]:
+                        sync_seq_found = True
+                        if self._debug:
+                            print("Found sync sequence at [%i, %i]" %\
+                                (self._file_handle.tell() - 8, self._file_handle.tell()))
+                        break
+
+                    else:
+                        # seek back 7 bytes and look for sync start again
+                        self._file_handle.seek(-7, 1)
+                sync_start = self._file_handle.read(1)
+        except IndexError:
+            # Reached end of file
+            if self._debug:
+                print("_find_sync(): reached EOF")
+
+        if not sync_seq_found:
+            self._file_handle.seek(initial_file_position, 0)
+
+            if last_n_bytes == -1:
+                self._has_sync = False
+                if self._debug:
+                    print("Failed to find sync in file from %i" % initial_file_position)
+            else:
+                if self._debug:
+                    print("Failed to find sync in (%i, %i)" %\
+                        (initial_file_position - last_n_bytes, initial_file_position))
+        else:
+            # declare file corrupt if we skipped bytes to sync sequence
+            self._file_corrupt = True
+
+        return sync_seq_found
 
     def _read_file_data(self, message_name_filter_list, read_until=None):
         """
@@ -626,6 +685,8 @@ class ULog(object):
                     msg_dropout = self.MessageDropout(data, header,
                                                       self._last_timestamp)
                     self._dropouts.append(msg_dropout)
+                elif header.msg_type == self.MSG_TYPE_SYNC:
+                    self._sync_seq_cnt = self._sync_seq_cnt + 1
                 else:
                     if self._debug:
                         print('_read_file_data: unknown message type: %i (%s)' %
@@ -633,10 +694,18 @@ class ULog(object):
                         print('file position: %i msg size: %i' % (
                             self._file_handle.tell(), header.msg_size))
 
-                    if self._check_file_corruption(header):
+                    if self._check_packet_corruption(header):
                         # seek back to advance only by a single byte instead of
                         # skipping the message
                         self._file_handle.seek(-2-header.msg_size, 1)
+
+                        # try recovery with sync sequence in case of unknown msg_type
+                        if self._has_sync:
+                            self._find_sync()
+                    else:
+                        # seek back msg_size to look for sync sequence in payload
+                        if self._has_sync:
+                            self._find_sync(header.msg_size)
 
         except struct.error:
             pass #we read past the end of the file
@@ -648,17 +717,23 @@ class ULog(object):
                 data_item = ULog.Data(value)
                 self._data_list.append(data_item)
 
-    def _check_file_corruption(self, header):
-        """ check for file corruption based on an unknown message type in the header """
-        # We need to handle 2 cases:
-        # - corrupt file (we do our best to read the rest of the file)
-        # - new ULog message type got added (we just want to skip the message)
+    def _check_packet_corruption(self, header):
+        """
+        check for data corruption based on an unknown message type in the header
+        set _file_corrupt flag to true if a corrupt packet is found
+        We need to handle 2 cases:
+        - corrupt file (we do our best to read the rest of the file)
+        - new ULog message type got added (we just want to skip the message)
+        return true if packet associated with header is corrupt, else return false
+        """
+        data_corrupt = False
         if header.msg_type == 0 or header.msg_size == 0 or header.msg_size > 10000:
             if not self._file_corrupt and self._debug:
                 print('File corruption detected')
+            data_corrupt = True
             self._file_corrupt = True
 
-        return self._file_corrupt
+        return data_corrupt
 
     def get_version_info(self, key_name='ver_sw_release'):
         """
