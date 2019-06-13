@@ -582,17 +582,16 @@ class ULog(object):
         current_file_position = initial_file_position
 
         if last_n_bytes != -1:
-            self._file_handle.seek(-last_n_bytes, 1)
-            current_file_position = current_file_position - last_n_bytes
+            current_file_position = self._file_handle.seek(-last_n_bytes, 1)
 
         sync_start = self._file_handle.read(1)
-        current_file_position = current_file_position + 1
+        current_file_position += 1
         try:
             while last_n_bytes == -1 or\
              (current_file_position < initial_file_position):
                 if sync_start[0] == ULog.SYNC_BYTES[0]:
                     data = self._file_handle.read(7)
-                    current_file_position = current_file_position + 7
+                    current_file_position += len(data)
                     if data == ULog.SYNC_BYTES[1:]:
                         sync_seq_found = True
                         if self._debug:
@@ -602,18 +601,16 @@ class ULog(object):
 
                     else:
                         # seek back 7 bytes and look for sync start again
-                        self._file_handle.seek(-7, 1)
-                        current_file_position = current_file_position - 7
+                        current_file_position = self._file_handle.seek(-7, 1)
                 sync_start = self._file_handle.read(1)
-                current_file_position = current_file_position + 1
+                current_file_position += 1
         except IndexError:
             # Reached end of file
             if self._debug:
                 print("_find_sync(): reached EOF")
 
         if not sync_seq_found:
-            self._file_handle.seek(initial_file_position, 0)
-            current_file_position = initial_file_position
+            current_file_position = self._file_handle.seek(initial_file_position, 0)
 
             if last_n_bytes == -1:
                 self._has_sync = False
