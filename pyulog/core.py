@@ -581,33 +581,31 @@ class ULog(object):
         initial_file_position = self._file_handle.tell()
         current_file_position = initial_file_position
 
+        search_chunk_size = 512 # number of bytes that are searched at ones
+
         if last_n_bytes != -1:
             current_file_position = self._file_handle.seek(-last_n_bytes, 1)
+            search_chunk_size = last_n_bytes
 
-        sync_start = self._file_handle.read(1)
-        current_file_position += 1
-        try:
-            while last_n_bytes == -1 or\
-             (current_file_position < initial_file_position):
-                if sync_start[0] == ULog.SYNC_BYTES[0]:
-                    data = self._file_handle.read(7)
-                    current_file_position += len(data)
-                    if data == ULog.SYNC_BYTES[1:]:
-                        sync_seq_found = True
-                        if self._debug:
-                            print("Found sync sequence at [%i, %i]" %\
-                                (self._file_handle.tell() - 8, self._file_handle.tell()))
-                        break
+        s = self._file_handle.read(search_chunk_size)
+        while len(s) > 0:
+            current_file_position += len(s)
 
-                    else:
-                        # seek back 7 bytes and look for sync start again
-                        current_file_position = self._file_handle.seek(-7, 1)
-                sync_start = self._file_handle.read(1)
-                current_file_position += 1
-        except IndexError:
-            # Reached end of file
-            if self._debug:
-                print("_find_sync(): reached EOF")
+            k = s.find(ULog.SYNC_BYTES)
+            if k > 0:
+                print("Found sync sequence at [%i, %i]" %\
+                            (current_file_position - len(s) + k, current_file_position - len(s) + k + len(ULog.SYNC_BYTES)))
+                # seek to end of sync sequence and break
+                current_file_position = self._file_handle.seek(current_file_position - len(s) + k + len(ULog.SYNC_BYTES), 0)
+                sync_seq_found = True
+                break
+
+            elif last_n_bytes != -1:
+                break
+
+            else:
+                # read next chunk
+                s = self._file_handle.read(search_chunk_size)
 
         if not sync_seq_found:
             current_file_position = self._file_handle.seek(initial_file_position, 0)
