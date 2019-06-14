@@ -581,33 +581,32 @@ class ULog(object):
         initial_file_position = self._file_handle.tell()
         current_file_position = initial_file_position
 
+        search_chunk_size = 512 # number of bytes that are searched at once
+
         if last_n_bytes != -1:
             current_file_position = self._file_handle.seek(-last_n_bytes, 1)
+            search_chunk_size = last_n_bytes
 
-        sync_start = self._file_handle.read(1)
-        current_file_position += 1
-        try:
-            while last_n_bytes == -1 or\
-             (current_file_position < initial_file_position):
-                if sync_start[0] == ULog.SYNC_BYTES[0]:
-                    data = self._file_handle.read(7)
-                    current_file_position += len(data)
-                    if data == ULog.SYNC_BYTES[1:]:
-                        sync_seq_found = True
-                        if self._debug:
-                            print("Found sync sequence at [%i, %i]" %\
-                                (self._file_handle.tell() - 8, self._file_handle.tell()))
-                        break
+        chunk = self._file_handle.read(search_chunk_size)
+        while len(chunk) >= len(ULog.SYNC_BYTES):
+            current_file_position += len(chunk)
+            chunk_index = chunk.find(ULog.SYNC_BYTES)
+            if chunk_index >= 0:
+                if self._debug:
+                    print("Found sync at %i" % (current_file_position - len(chunk) + chunk_index))
+                # seek to end of sync sequence and break
+                current_file_position = self._file_handle.seek(current_file_position - len(chunk)\
+                         + chunk_index + len(ULog.SYNC_BYTES), 0)
+                sync_seq_found = True
+                break
 
-                    else:
-                        # seek back 7 bytes and look for sync start again
-                        current_file_position = self._file_handle.seek(-7, 1)
-                sync_start = self._file_handle.read(1)
-                current_file_position += 1
-        except IndexError:
-            # Reached end of file
-            if self._debug:
-                print("_find_sync(): reached EOF")
+            elif last_n_bytes != -1:
+                # we read the whole last_n_bytes and did not find sync
+                break
+
+            # seek back 7 bytes to handle boundary condition and read next chunk
+            current_file_position = self._file_handle.seek(-7, 1)
+            chunk = self._file_handle.read(search_chunk_size)
 
         if not sync_seq_found:
             current_file_position = self._file_handle.seek(initial_file_position, 0)
