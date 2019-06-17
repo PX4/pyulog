@@ -591,7 +591,7 @@ class ULog(object):
         while len(chunk) > 0:
             current_file_position += len(chunk)
             chunk_index = chunk.find(ULog.SYNC_BYTES)
-            if chunk_index > 0:
+            if chunk_index >= 0:
                 if self._debug:
                     print("Found sync at %i" % current_file_position - len(chunk) + chunk_index)
                 # seek to end of sync sequence and break
