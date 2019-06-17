@@ -581,7 +581,7 @@ class ULog(object):
         initial_file_position = self._file_handle.tell()
         current_file_position = initial_file_position
 
-        search_chunk_size = 512 # number of bytes that are searched at ones
+        search_chunk_size = 512 # number of bytes that are searched at once
 
         if last_n_bytes != -1:
             current_file_position = self._file_handle.seek(-last_n_bytes, 1)
