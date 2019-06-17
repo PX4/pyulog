@@ -52,11 +52,7 @@ def main():
     if not args.octave:
         for param_key in param_keys:
             output_file.write(param_key)
-            if args.initial:
-                output_file.write(delimiter)
-                output_file.write(str(ulog.initial_parameters[param_key]))
-                output_file.write('\n')
-            elif args.timestamps:
+            if args.timestamps:
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 for t, name, value in ulog.changed_parameters:
@@ -75,11 +71,13 @@ def main():
 
                 output_file.write('\n')
             else:
-                for t, name, value in ulog.changed_parameters:
-                    if name == param_key:
-                        output_file.write(delimiter)
-                        output_file.write(str(value))
-
+                output_file.write(delimiter)
+                output_file.write(str(ulog.initial_parameters[param_key]))
+                if not args.initial:
+                    for t, name, value in ulog.changed_parameters:
+                        if name == param_key:
+                            output_file.write(delimiter)
+                            output_file.write(str(value))
                 output_file.write('\n')
 
     else:
