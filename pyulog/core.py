@@ -605,7 +605,7 @@ class ULog(object):
                 break
 
             # seek back 7 bytes to handle boundary condition and read next chunk
-            current_file_position = self._file_handle.seek(-7, 1)
+            current_file_position = self._file_handle.seek(-(len(ULog.SYNC_BYTES)-1), 1)
             chunk = self._file_handle.read(search_chunk_size)
 
         if not sync_seq_found:
