@@ -29,6 +29,9 @@ def main():
     parser.add_argument('-t', '--timestamps', dest='timestamps', action='store_true',
                         help='Extract changed parameters with timestamps', default=False)
 
+    parser.add_argument('-q', '--qgc_compatibility', dest='qgc_compatibility', action='store_true',
+                        help='Extract parameters in QGC compatible format', default=False)
+
     parser.add_argument('output_filename', metavar='params.txt',
                         type=argparse.FileType('w'), nargs='?',
                         help='Output filename (default=stdout)', default=sys.stdout)
@@ -51,8 +54,8 @@ def main():
 
     if not args.octave:
         for param_key in param_keys:
-            output_file.write(param_key)
             if args.timestamps:
+                output_file.write(param_key)
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 for t, name, value in ulog.changed_parameters:
@@ -70,7 +73,35 @@ def main():
                         output_file.write(str(t))
 
                 output_file.write('\n')
+
+            # QGC formatted parameter file
+            elif args.qgc_compatibility:
+                sys_id = 1
+                comp_id = 1
+                delimiter = '\t'
+                param_value = ulog.initial_parameters[param_key]
+
+                output_file.write(str(sys_id))
+                output_file.write(delimiter)
+                output_file.write(str(comp_id))
+                output_file.write(delimiter)
+                output_file.write(param_key)
+                output_file.write(delimiter)
+                output_file.write(str(param_value))
+                output_file.write(delimiter)
+
+                if str(param_value).find('.') != -1:
+                    # Float
+                    param_type = 9
+                else:
+                    # Int
+                    param_type = 6
+
+                output_file.write(str(param_type))
+                output_file.write('\n')
+
             else:
+                output_file.write(param_key)
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 if not args.initial:
