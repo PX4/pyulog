@@ -90,7 +90,7 @@ def main():
                 output_file.write(str(param_value))
                 output_file.write(delimiter)
 
-                if str(param_value).find('.') != -1:
+                if isinstance(param_value, float):
                     # Float
                     param_type = 9
                 else:
