@@ -13,24 +13,17 @@ from .core import ULog
 
 def main():
     """Commande line interface"""
-
     parser = argparse.ArgumentParser(description='Extract parameters from an ULog file')
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
-    parser.add_argument('-d', '--delimiter', dest='delimiter', action='store',
-                        help='Use delimiter in CSV (default is \',\')', default=',')
-
     parser.add_argument('-i', '--initial', dest='initial', action='store_true',
-                        help='Only extract initial parameters', default=False)
-
-    parser.add_argument('-o', '--octave', dest='octave', action='store_true',
-                        help='Use Octave format', default=False)
+                        help='Only extract initial parameters. (csv|octave|qgc)', default=False)
 
     parser.add_argument('-t', '--timestamps', dest='timestamps', action='store_true',
-                        help='Extract changed parameters with timestamps', default=False)
+                        help='Extract changed parameters with timestamps. (csv|qgc)', default=False)
 
-    parser.add_argument('-q', '--qgc_compatibility', dest='qgc_compatibility', action='store_true',
-                        help='Extract parameters in QGC compatible format', default=False)
+    parser.add_argument('-f', '--format', dest='format', action='store', type=str,
+                        help='csv|octave|qgc', default=False)
 
     parser.add_argument('output_filename', metavar='params.txt',
                         type=argparse.FileType('w'), nargs='?',
@@ -49,10 +42,10 @@ def main():
     ulog = ULog(ulog_file_name, message_filter, disable_str_exceptions)
 
     param_keys = sorted(ulog.initial_parameters.keys())
-    delimiter = args.delimiter
+    delimiter = ','
     output_file = args.output_filename
 
-    if not args.octave:
+    if not args.format == "octave":
         for param_key in param_keys:
             if args.timestamps:
                 output_file.write(param_key)
@@ -74,8 +67,7 @@ def main():
 
                 output_file.write('\n')
 
-            # QGC formatted parameter file
-            elif args.qgc_compatibility:
+            elif args.format == "qgc":
                 sys_id = 1
                 comp_id = 1
                 delimiter = '\t'
