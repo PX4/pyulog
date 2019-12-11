@@ -23,7 +23,7 @@ def main():
                         help='Extract changed parameters with timestamps. (csv)', default=False)
 
     parser.add_argument('-f', '--format', dest='format', action='store', type=str,
-                        help='csv|octave|qgc', default=False)
+                        help='csv|octave|qgc', default='csv')
 
     parser.add_argument('output_filename', metavar='params.txt',
                         type=argparse.FileType('w'), nargs='?',
