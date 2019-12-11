@@ -17,10 +17,10 @@ def main():
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
     parser.add_argument('-i', '--initial', dest='initial', action='store_true',
-                        help='Only extract initial parameters. (csv|octave|qgc)', default=False)
+                        help='Only extract initial parameters. (octave|csv)', default=False)
 
     parser.add_argument('-t', '--timestamps', dest='timestamps', action='store_true',
-                        help='Extract changed parameters with timestamps. (csv|qgc)', default=False)
+                        help='Extract changed parameters with timestamps. (csv)', default=False)
 
     parser.add_argument('-f', '--format', dest='format', action='store', type=str,
                         help='csv|octave|qgc', default=False)
@@ -45,10 +45,10 @@ def main():
     delimiter = ','
     output_file = args.output_filename
 
-    if not args.format == "octave":
+    if args.format == "csv":
         for param_key in param_keys:
+            output_file.write(param_key)
             if args.timestamps:
-                output_file.write(param_key)
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 for t, name, value in ulog.changed_parameters:
@@ -66,34 +66,7 @@ def main():
                         output_file.write(str(t))
 
                 output_file.write('\n')
-
-            elif args.format == "qgc":
-                sys_id = 1
-                comp_id = 1
-                delimiter = '\t'
-                param_value = ulog.initial_parameters[param_key]
-
-                output_file.write(str(sys_id))
-                output_file.write(delimiter)
-                output_file.write(str(comp_id))
-                output_file.write(delimiter)
-                output_file.write(param_key)
-                output_file.write(delimiter)
-                output_file.write(str(param_value))
-                output_file.write(delimiter)
-
-                if isinstance(param_value, float):
-                    # Float
-                    param_type = 9
-                else:
-                    # Int
-                    param_type = 6
-
-                output_file.write(str(param_type))
-                output_file.write('\n')
-
             else:
-                output_file.write(param_key)
                 output_file.write(delimiter)
                 output_file.write(str(ulog.initial_parameters[param_key]))
                 if not args.initial:
@@ -103,7 +76,7 @@ def main():
                             output_file.write(str(value))
                 output_file.write('\n')
 
-    else:
+    elif args.format == "octave":
 
         for param_key in param_keys:
             output_file.write('# name ')
@@ -127,4 +100,31 @@ def main():
                 output_file.write('\n# type: scalar\n')
                 output_file.write(str(values[0]))
 
+            output_file.write('\n')
+
+    elif args.format == "qgc":
+
+        for param_key in param_keys:
+            sys_id = 1
+            comp_id = 1
+            delimiter = '\t'
+            param_value = ulog.initial_parameters[param_key]
+
+            output_file.write(str(sys_id))
+            output_file.write(delimiter)
+            output_file.write(str(comp_id))
+            output_file.write(delimiter)
+            output_file.write(param_key)
+            output_file.write(delimiter)
+            output_file.write(str(param_value))
+            output_file.write(delimiter)
+
+            if isinstance(param_value, float):
+                # Float
+                param_type = 9
+            else:
+                # Int
+                param_type = 6
+
+            output_file.write(str(param_type))
             output_file.write('\n')
