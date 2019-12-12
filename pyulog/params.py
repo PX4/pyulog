@@ -13,21 +13,17 @@ from .core import ULog
 
 def main():
     """Commande line interface"""
-
     parser = argparse.ArgumentParser(description='Extract parameters from an ULog file')
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
-    parser.add_argument('-d', '--delimiter', dest='delimiter', action='store',
-                        help='Use delimiter in CSV (default is \',\')', default=',')
-
     parser.add_argument('-i', '--initial', dest='initial', action='store_true',
-                        help='Only extract initial parameters', default=False)
-
-    parser.add_argument('-o', '--octave', dest='octave', action='store_true',
-                        help='Use Octave format', default=False)
+                        help='Only extract initial parameters. (octave|csv)', default=False)
 
     parser.add_argument('-t', '--timestamps', dest='timestamps', action='store_true',
-                        help='Extract changed parameters with timestamps', default=False)
+                        help='Extract changed parameters with timestamps. (csv)', default=False)
+
+    parser.add_argument('-f', '--format', dest='format', action='store', type=str,
+                        help='csv|octave|qgc', default='csv')
 
     parser.add_argument('output_filename', metavar='params.txt',
                         type=argparse.FileType('w'), nargs='?',
@@ -46,10 +42,10 @@ def main():
     ulog = ULog(ulog_file_name, message_filter, disable_str_exceptions)
 
     param_keys = sorted(ulog.initial_parameters.keys())
-    delimiter = args.delimiter
+    delimiter = ','
     output_file = args.output_filename
 
-    if not args.octave:
+    if args.format == "csv":
         for param_key in param_keys:
             output_file.write(param_key)
             if args.timestamps:
@@ -80,7 +76,7 @@ def main():
                             output_file.write(str(value))
                 output_file.write('\n')
 
-    else:
+    elif args.format == "octave":
 
         for param_key in param_keys:
             output_file.write('# name ')
@@ -104,4 +100,31 @@ def main():
                 output_file.write('\n# type: scalar\n')
                 output_file.write(str(values[0]))
 
+            output_file.write('\n')
+
+    elif args.format == "qgc":
+
+        for param_key in param_keys:
+            sys_id = 1
+            comp_id = 1
+            delimiter = '\t'
+            param_value = ulog.initial_parameters[param_key]
+
+            output_file.write(str(sys_id))
+            output_file.write(delimiter)
+            output_file.write(str(comp_id))
+            output_file.write(delimiter)
+            output_file.write(param_key)
+            output_file.write(delimiter)
+            output_file.write(str(param_value))
+            output_file.write(delimiter)
+
+            if isinstance(param_value, float):
+                # Float
+                param_type = 9
+            else:
+                # Int
+                param_type = 6
+
+            output_file.write(str(param_type))
             output_file.write('\n')
