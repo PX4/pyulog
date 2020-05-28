@@ -516,56 +516,63 @@ class ULog(object):
                 break
             header.initialize(data)
             data = self._file_handle.read(header.msg_size)
-            if header.msg_type == self.MSG_TYPE_INFO:
-                msg_info = self._MessageInfo(data, header)
-                self._msg_info_dict[msg_info.key] = msg_info.value
-            elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
-                msg_info = self._MessageInfo(data, header, is_info_multiple=True)
-                self._add_message_info_multiple(msg_info)
-            elif header.msg_type == self.MSG_TYPE_FORMAT:
-                msg_format = self.MessageFormat(data, header)
-                self._message_formats[msg_format.name] = msg_format
-            elif header.msg_type == self.MSG_TYPE_PARAMETER:
-                msg_info = self._MessageInfo(data, header)
-                self._initial_parameters[msg_info.key] = msg_info.value
-            elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
-                  header.msg_type == self.MSG_TYPE_LOGGING or
-                  header.msg_type == self.MSG_TYPE_LOGGING_TAGGED):
-                self._file_handle.seek(-(3+header.msg_size), 1)
-                break # end of section
-            elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
-                # make sure this is the first message in the log
-                if self._file_handle.tell() != 16 + 3 + header.msg_size:
-                    print('Error: FLAGS_BITS message must be first message. Offset:',
-                          self._file_handle.tell())
-                msg_flag_bits = self._MessageFlagBits(data, header)
-                self._compat_flags = msg_flag_bits.compat_flags
-                self._incompat_flags = msg_flag_bits.incompat_flags
-                self._appended_offsets = msg_flag_bits.appended_offsets
-                if self._debug:
-                    print('compat flags:  ', self._compat_flags)
-                    print('incompat flags:', self._incompat_flags)
-                    print('appended offsets:', self._appended_offsets)
+            try:
+                if header.msg_type == self.MSG_TYPE_INFO:
+                    msg_info = self._MessageInfo(data, header)
+                    self._msg_info_dict[msg_info.key] = msg_info.value
+                elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
+                    msg_info = self._MessageInfo(data, header, is_info_multiple=True)
+                    self._add_message_info_multiple(msg_info)
+                elif header.msg_type == self.MSG_TYPE_FORMAT:
+                    msg_format = self.MessageFormat(data, header)
+                    self._message_formats[msg_format.name] = msg_format
+                elif header.msg_type == self.MSG_TYPE_PARAMETER:
+                    msg_info = self._MessageInfo(data, header)
+                    self._initial_parameters[msg_info.key] = msg_info.value
+                elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
+                      header.msg_type == self.MSG_TYPE_LOGGING or
+                      header.msg_type == self.MSG_TYPE_LOGGING_TAGGED):
+                    self._file_handle.seek(-(3+header.msg_size), 1)
+                    break # end of section
+                elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
+                    # make sure this is the first message in the log
+                    if self._file_handle.tell() != 16 + 3 + header.msg_size:
+                        print('Error: FLAGS_BITS message must be first message. Offset:',
+                              self._file_handle.tell())
+                    msg_flag_bits = self._MessageFlagBits(data, header)
+                    self._compat_flags = msg_flag_bits.compat_flags
+                    self._incompat_flags = msg_flag_bits.incompat_flags
+                    self._appended_offsets = msg_flag_bits.appended_offsets
+                    if self._debug:
+                        print('compat flags:  ', self._compat_flags)
+                        print('incompat flags:', self._incompat_flags)
+                        print('appended offsets:', self._appended_offsets)
 
-                # check if there are bits set that we don't know
-                unknown_incompat_flag_msg = "Unknown incompatible flag set: cannot parse the log"
-                if self._incompat_flags[0] & ~1:
-                    raise Exception(unknown_incompat_flag_msg)
-                for i in range(1, 8):
-                    if self._incompat_flags[i]:
+                    # check if there are bits set that we don't know
+                    unknown_incompat_flag_msg = \
+                    "Unknown incompatible flag set: cannot parse the log"
+                    if self._incompat_flags[0] & ~1:
                         raise Exception(unknown_incompat_flag_msg)
+                    for i in range(1, 8):
+                        if self._incompat_flags[i]:
+                            raise Exception(unknown_incompat_flag_msg)
 
-            else:
-                if self._debug:
-                    print('read_file_definitions: unknown message type: %i (%s)' %
-                          (header.msg_type, chr(header.msg_type)))
-                    file_position = self._file_handle.tell()
-                    print('file position: %i (0x%x) msg size: %i' % (
-                        file_position, file_position, header.msg_size))
-                if self._check_packet_corruption(header):
-                    # seek back to advance only by a single byte instead of
-                    # skipping the message
-                    self._file_handle.seek(-2-header.msg_size, 1)
+                else:
+                    if self._debug:
+                        print('read_file_definitions: unknown message type: %i (%s)' %
+                              (header.msg_type, chr(header.msg_type)))
+                        file_position = self._file_handle.tell()
+                        print('file position: %i (0x%x) msg size: %i' % (
+                            file_position, file_position, header.msg_size))
+                    if self._check_packet_corruption(header):
+                        # seek back to advance only by a single byte instead of
+                        # skipping the message
+                        self._file_handle.seek(-2-header.msg_size, 1)
+
+            except IndexError:
+                if not self._file_corrupt:
+                    print("File corruption detected while reading file definitions!")
+                    self._file_corrupt = True
 
     def _find_sync(self, last_n_bytes=-1):
         """
@@ -657,62 +664,68 @@ class ULog(object):
                               (read_until, curr_file_pos))
                     break
 
-                if header.msg_type == self.MSG_TYPE_INFO:
-                    msg_info = self._MessageInfo(data, header)
-                    self._msg_info_dict[msg_info.key] = msg_info.value
-                elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
-                    msg_info = self._MessageInfo(data, header, is_info_multiple=True)
-                    self._add_message_info_multiple(msg_info)
-                elif header.msg_type == self.MSG_TYPE_PARAMETER:
-                    msg_info = self._MessageInfo(data, header)
-                    self._changed_parameters.append((self._last_timestamp,
-                                                     msg_info.key, msg_info.value))
-                elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
-                    msg_add_logged = self._MessageAddLogged(data, header,
-                                                            self._message_formats)
-                    if (message_name_filter_list is None or
-                            msg_add_logged.message_name in message_name_filter_list):
-                        self._subscriptions[msg_add_logged.msg_id] = msg_add_logged
+                try:
+                    if header.msg_type == self.MSG_TYPE_INFO:
+                        msg_info = self._MessageInfo(data, header)
+                        self._msg_info_dict[msg_info.key] = msg_info.value
+                    elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
+                        msg_info = self._MessageInfo(data, header, is_info_multiple=True)
+                        self._add_message_info_multiple(msg_info)
+                    elif header.msg_type == self.MSG_TYPE_PARAMETER:
+                        msg_info = self._MessageInfo(data, header)
+                        self._changed_parameters.append((self._last_timestamp,
+                                                         msg_info.key, msg_info.value))
+                    elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
+                        msg_add_logged = self._MessageAddLogged(data, header,
+                                                                self._message_formats)
+                        if (message_name_filter_list is None or
+                                msg_add_logged.message_name in message_name_filter_list):
+                            self._subscriptions[msg_add_logged.msg_id] = msg_add_logged
+                        else:
+                            self._filtered_message_ids.add(msg_add_logged.msg_id)
+                    elif header.msg_type == self.MSG_TYPE_LOGGING:
+                        msg_logging = self.MessageLogging(data, header)
+                        self._logged_messages.append(msg_logging)
+                    elif header.msg_type == self.MSG_TYPE_LOGGING_TAGGED:
+                        msg_log_tagged = self.MessageLoggingTagged(data, header)
+                        if msg_log_tagged.tag in self._logged_messages_tagged:
+                            self._logged_messages_tagged[msg_log_tagged.tag].append(msg_log_tagged)
+                        else:
+                            self._logged_messages_tagged[msg_log_tagged.tag] = [msg_log_tagged]
+                    elif header.msg_type == self.MSG_TYPE_DATA:
+                        msg_data.initialize(data, header, self._subscriptions, self)
+                        if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
+                            self._last_timestamp = msg_data.timestamp
+                    elif header.msg_type == self.MSG_TYPE_DROPOUT:
+                        msg_dropout = self.MessageDropout(data, header,
+                                                          self._last_timestamp)
+                        self._dropouts.append(msg_dropout)
+                    elif header.msg_type == self.MSG_TYPE_SYNC:
+                        self._sync_seq_cnt = self._sync_seq_cnt + 1
                     else:
-                        self._filtered_message_ids.add(msg_add_logged.msg_id)
-                elif header.msg_type == self.MSG_TYPE_LOGGING:
-                    msg_logging = self.MessageLogging(data, header)
-                    self._logged_messages.append(msg_logging)
-                elif header.msg_type == self.MSG_TYPE_LOGGING_TAGGED:
-                    msg_log_tagged = self.MessageLoggingTagged(data, header)
-                    if msg_log_tagged.tag in self._logged_messages_tagged:
-                        self._logged_messages_tagged[msg_log_tagged.tag].append(msg_log_tagged)
-                    else:
-                        self._logged_messages_tagged[msg_log_tagged.tag] = [msg_log_tagged]
-                elif header.msg_type == self.MSG_TYPE_DATA:
-                    msg_data.initialize(data, header, self._subscriptions, self)
-                    if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
-                        self._last_timestamp = msg_data.timestamp
-                elif header.msg_type == self.MSG_TYPE_DROPOUT:
-                    msg_dropout = self.MessageDropout(data, header,
-                                                      self._last_timestamp)
-                    self._dropouts.append(msg_dropout)
-                elif header.msg_type == self.MSG_TYPE_SYNC:
-                    self._sync_seq_cnt = self._sync_seq_cnt + 1
-                else:
-                    if self._debug:
-                        print('_read_file_data: unknown message type: %i (%s)' %
-                              (header.msg_type, chr(header.msg_type)))
-                        print('file position: %i msg size: %i' % (
-                            curr_file_pos, header.msg_size))
+                        if self._debug:
+                            print('_read_file_data: unknown message type: %i (%s)' %
+                                  (header.msg_type, chr(header.msg_type)))
+                            print('file position: %i msg size: %i' % (
+                                curr_file_pos, header.msg_size))
 
-                    if self._check_packet_corruption(header):
-                        # seek back to advance only by a single byte instead of
-                        # skipping the message
-                        curr_file_pos = self._file_handle.seek(-2-header.msg_size, 1)
+                        if self._check_packet_corruption(header):
+                            # seek back to advance only by a single byte instead of
+                            # skipping the message
+                            curr_file_pos = self._file_handle.seek(-2-header.msg_size, 1)
 
-                        # try recovery with sync sequence in case of unknown msg_type
-                        if self._has_sync:
-                            self._find_sync()
-                    else:
-                        # seek back msg_size to look for sync sequence in payload
-                        if self._has_sync:
-                            self._find_sync(header.msg_size)
+                            # try recovery with sync sequence in case of unknown msg_type
+                            if self._has_sync:
+                                self._find_sync()
+                        else:
+                            # seek back msg_size to look for sync sequence in payload
+                            if self._has_sync:
+                                self._find_sync(header.msg_size)
+
+                except IndexError:
+                    if not self._file_corrupt:
+                        print("File corruption detected while reading file data!")
+                        self._file_corrupt = True
 
         except struct.error:
             pass #we read past the end of the file
