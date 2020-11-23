@@ -32,7 +32,8 @@ def main():
     parser.add_argument('-x', '--ignore', dest='ignore', action='store_true',
                         help='Ignore string parsing exceptions', default=False)
     parser.add_argument('-i', '--instance', dest='required_instance', action='store',
-                        help='GPS instance. Use 0 (default) for main GPS, 1 for secondary GPS reciever. ', default=0)
+                        help='GPS instance. Use 0 (default) for main GPS, 1 for secondary GPS reciever. ',
+                        default=0)
 
     args = parser.parse_args()
     ulog_file_name = args.filename
