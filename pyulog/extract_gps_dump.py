@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import sys
 
 from .core import ULog
 
@@ -32,7 +33,8 @@ def main():
     parser.add_argument('-x', '--ignore', dest='ignore', action='store_true',
                         help='Ignore string parsing exceptions', default=False)
     parser.add_argument('-i', '--instance', dest='required_instance', action='store',
-                        help='GPS instance. Use 0 (default) for main GPS, 1 for secondary GPS reciever. ',
+                        help='GPS instance. Use 0 (default)'
+                        + 'for main GPS, 1 for secondary GPS reciever.',
                         default=0)
 
     args = parser.parse_args()
@@ -59,7 +61,7 @@ def main():
 
     if len(data) == 0:
         print("File {0} does not contain gps_dump messages!".format(ulog_file_name))
-        exit(0)
+        sys.exit(0)
 
     gps_dump_data = data[0]
 
@@ -67,7 +69,7 @@ def main():
     field_names = [f.field_name for f in gps_dump_data.field_data]
     if not 'len' in field_names or not 'data[0]' in field_names:
         print('Error: gps_dump message has wrong format')
-        exit(-1)
+        sys.exit(-1)
 
     if len(ulog.dropouts) > 0:
         print("Warning: file contains {0} dropouts".format(len(ulog.dropouts)))
