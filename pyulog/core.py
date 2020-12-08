@@ -605,10 +605,11 @@ class ULog(object):
                 current_file_position = self._file_handle.seek(current_file_position - len(chunk)\
                          + chunk_index + len(ULog.SYNC_BYTES), 0)
                 sync_seq_found = True
+                break
 
             elif last_n_bytes != -1:
                 # we read the whole last_n_bytes and did not find sync
-                pass
+                break
 
             # seek back 7 bytes to handle boundary condition and read next chunk
             current_file_position = self._file_handle.seek(-(len(ULog.SYNC_BYTES)-1), 1)
