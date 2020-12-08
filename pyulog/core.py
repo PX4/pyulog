@@ -607,7 +607,7 @@ class ULog(object):
                 sync_seq_found = True
                 break
 
-            elif last_n_bytes != -1:
+            if last_n_bytes != -1:
                 # we read the whole last_n_bytes and did not find sync
                 break
 
