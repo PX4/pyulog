@@ -24,6 +24,9 @@ def main():
     parser = argparse.ArgumentParser(description='Extract parameters from an ULog file')
     parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
 
+    parser.add_argument('-l', '--delimiter', dest='delimiter', action='store',
+                        help='Use delimiter in CSV (default is \',\')', default=',')
+
     parser.add_argument('-i', '--initial', dest='initial', action='store_true',
                         help='Only extract initial parameters. (octave|csv)', default=False)
 
@@ -60,7 +63,7 @@ def main():
         args.initial = True
 
     param_keys = sorted(params.keys())
-    delimiter = ','
+    delimiter = args.delimiter
     output_file = args.output_filename
 
     if args.format == "csv":
