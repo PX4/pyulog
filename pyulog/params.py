@@ -11,6 +11,14 @@ import sys
 from .core import ULog
 #pylint: disable=unused-variable, too-many-branches
 
+def get_defaults(ulog, default):
+    """ get default params from ulog """
+    assert ulog.has_default_parameters, "Log does not contain default parameters"
+
+    if default == 'system': return ulog.get_default_parameters(0)
+    if default == 'current_setup': return ulog.get_default_parameters(1)
+    raise Exception('invalid value \'{}\' for --default'.format(default))
+
 def main():
     """Commande line interface"""
     parser = argparse.ArgumentParser(description='Extract parameters from an ULog file')
@@ -32,6 +40,11 @@ def main():
     parser.add_argument('--ignore', dest='ignore', action='store_true',
                         help='Ignore string parsing exceptions', default=False)
 
+    parser.add_argument('-d', '--default', dest='default', action='store', type=str,
+                        help='Select default param values instead of configured '
+                        'values (implies --initial). Valid values: system|current_setup',
+                        default=None)
+
     args = parser.parse_args()
     ulog_file_name = args.filename
     disable_str_exceptions = args.ignore
@@ -41,7 +54,12 @@ def main():
 
     ulog = ULog(ulog_file_name, message_filter, disable_str_exceptions)
 
-    param_keys = sorted(ulog.initial_parameters.keys())
+    params = ulog.initial_parameters
+    if args.default is not None:
+        params = get_defaults(ulog, args.default)
+        args.initial = True
+
+    param_keys = sorted(params.keys())
     delimiter = ','
     output_file = args.output_filename
 
@@ -50,7 +68,7 @@ def main():
             output_file.write(param_key)
             if args.timestamps:
                 output_file.write(delimiter)
-                output_file.write(str(ulog.initial_parameters[param_key]))
+                output_file.write(str(params[param_key]))
                 for t, name, value in ulog.changed_parameters:
                     if name == param_key:
                         output_file.write(delimiter)
@@ -68,7 +86,7 @@ def main():
                 output_file.write('\n')
             else:
                 output_file.write(delimiter)
-                output_file.write(str(ulog.initial_parameters[param_key]))
+                output_file.write(str(params[param_key]))
                 if not args.initial:
                     for t, name, value in ulog.changed_parameters:
                         if name == param_key:
@@ -81,7 +99,7 @@ def main():
         for param_key in param_keys:
             output_file.write('# name ')
             output_file.write(param_key)
-            values = [ulog.initial_parameters[param_key]]
+            values = [params[param_key]]
 
             if not args.initial:
                 for t, name, value in ulog.changed_parameters:
@@ -108,7 +126,7 @@ def main():
             sys_id = 1
             comp_id = 1
             delimiter = '\t'
-            param_value = ulog.initial_parameters[param_key]
+            param_value = params[param_key]
 
             output_file.write(str(sys_id))
             output_file.write(delimiter)
