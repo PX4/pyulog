@@ -37,6 +37,7 @@ class ULog(object):
     MSG_TYPE_INFO = ord('I')
     MSG_TYPE_INFO_MULTIPLE = ord('M')
     MSG_TYPE_PARAMETER = ord('P')
+    MSG_TYPE_PARAMETER_DEFAULT = ord('Q')
     MSG_TYPE_ADD_LOGGED_MSG = ord('A')
     MSG_TYPE_REMOVE_LOGGED_MSG = ord('R')
     MSG_TYPE_SYNC = ord('S')
@@ -110,6 +111,7 @@ class ULog(object):
         self._msg_info_dict = {}
         self._msg_info_multiple_dict = {}
         self._initial_parameters = {}
+        self._default_parameters = {}
         self._changed_parameters = []
         self._message_formats = {}
         self._logged_messages = []
@@ -161,6 +163,15 @@ class ULog(object):
         """ dictionary of all initially set parameters (key=param name) """
         return self._initial_parameters
 
+    def get_default_parameters(self, default_type):
+        """ dictionary of all default parameters (key=param name).
+        Note that defaults are generally only stored for parameters where
+        the default is different from the configured value
+
+        :param default_type: 0: system, 1: current_setup
+        """
+        return self._default_parameters.get(default_type, {})
+
     @property
     def changed_parameters(self):
         """ list of all changed parameters (tuple of (timestamp, name, value))"""
@@ -202,6 +213,10 @@ class ULog(object):
         """ True if a file corruption got detected """
         return self._file_corrupt
 
+    @property
+    def has_default_parameters(self):
+        """ True if compat flag DEFAULT_PARAMETERS is set """
+        return self._compat_flags[0] & (0x1 << 0)
 
     def get_dataset(self, name, multi_instance=0):
         """ get a specific dataset.
@@ -286,6 +301,16 @@ class ULog(object):
                 self.value, = struct.unpack('<'+unpack_type[0], data[1+key_len:])
             else: # probably an array (or non-basic type)
                 self.value = data[1+key_len:]
+
+    class _MessageParameterDefault(object):
+        """ ULog parameter default message representation """
+
+        def __init__(self, data, header):
+            self.default_types, = struct.unpack('<B', data[0:1])
+            msg_info = ULog._MessageInfo(data[1:], header)
+            self.type = msg_info.type
+            self.key = msg_info.key
+            self.value = msg_info.value
 
     class _MessageFlagBits(object):
         """ ULog message flag bits """
@@ -460,6 +485,17 @@ class ULog(object):
                               ' but file is most likely corrupt'.format(msg_id))
                 self.timestamp = 0
 
+    def _add_parameter_default(self, msg_param):
+        """ add a _MessageParameterDefault object """
+        default_types = msg_param.default_types
+        while default_types: # iterate over each bit
+            def_type = default_types & (~default_types+1)
+            default_types ^= def_type
+            def_type -= 1
+            if def_type not in self._default_parameters:
+                self._default_parameters[def_type] = {}
+            self._default_parameters[def_type][msg_param.key] = msg_param.value
+
     def _add_message_info_multiple(self, msg_info):
         """ add a message info multiple to self._msg_info_multiple_dict """
         if msg_info.key in self._msg_info_multiple_dict:
@@ -529,6 +565,9 @@ class ULog(object):
                 elif header.msg_type == self.MSG_TYPE_PARAMETER:
                     msg_info = self._MessageInfo(data, header)
                     self._initial_parameters[msg_info.key] = msg_info.value
+                elif header.msg_type == self.MSG_TYPE_PARAMETER_DEFAULT:
+                    msg_param = self._MessageParameterDefault(data, header)
+                    self._add_parameter_default(msg_param)
                 elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
                       header.msg_type == self.MSG_TYPE_LOGGING or
                       header.msg_type == self.MSG_TYPE_LOGGING_TAGGED):
@@ -675,6 +714,9 @@ class ULog(object):
                         msg_info = self._MessageInfo(data, header)
                         self._changed_parameters.append((self._last_timestamp,
                                                          msg_info.key, msg_info.value))
+                    elif header.msg_type == self.MSG_TYPE_PARAMETER_DEFAULT:
+                        msg_param = self._MessageParameterDefault(data, header)
+                        self._add_parameter_default(msg_param)
                     elif header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG:
                         msg_add_logged = self._MessageAddLogged(data, header,
                                                                 self._message_formats)
