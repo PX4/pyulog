@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 """
-Extract parameters from an ULog file
+Extract and compare parameters from two ULog files
 """
 
 from __future__ import print_function
 
 import argparse
 import sys
+import re
+from html import escape
 
 from .core import ULog
 #pylint: disable=unused-variable, too-many-branches
@@ -22,7 +24,8 @@ def get_defaults(ulog, default):
 def main():
     """Commande line interface"""
     parser = argparse.ArgumentParser(description='Extract parameters from an ULog file')
-    parser.add_argument('filename', metavar='file.ulg', help='ULog input file')
+    parser.add_argument('filename1', metavar='file1.ulg', help='ULog input file')
+    parser.add_argument('filename2', metavar='file2.ulg', help='ULog input file')
 
     parser.add_argument('-l', '--delimiter', dest='delimiter', action='store',
                         help='Use delimiter in CSV (default is \',\')', default=',')
@@ -49,103 +52,88 @@ def main():
                         default=None)
 
     args = parser.parse_args()
-    ulog_file_name = args.filename
+    ulog_file_name1 = args.filename1
+    ulog_file_name2 = args.filename2
     disable_str_exceptions = args.ignore
 
     message_filter = []
     if not args.initial: message_filter = None
 
-    ulog = ULog(ulog_file_name, message_filter, disable_str_exceptions)
+    ulog1 = ULog(ulog_file_name1, message_filter, disable_str_exceptions)
+    ulog2 = ULog(ulog_file_name2, message_filter, disable_str_exceptions)
 
-    params = ulog.initial_parameters
+    params1 = ulog1.initial_parameters
+    params2 = ulog2.initial_parameters
     if args.default is not None:
-        params = get_defaults(ulog, args.default)
+        params1 = get_defaults(ulog1, args.default)
         args.initial = True
 
-    param_keys = sorted(params.keys())
+    param_keys1 = sorted(params1.keys())
+    param_keys2 = sorted(params2.keys())
     delimiter = args.delimiter
     output_file = args.output_filename
+    version1 = ''
+    version2 = ''
+
+    if 'boot_console_output' in ulog1.msg_info_multiple_dict:
+        console_output = ulog1.msg_info_multiple_dict['boot_console_output'][0]
+        escape(''.join(console_output))
+        version = re.search('Build datetime:',str(console_output))
+        version1 = str(console_output)[version.end():version.start()+36]
+
+    if 'boot_console_output' in ulog2.msg_info_multiple_dict:
+        console_output = ulog2.msg_info_multiple_dict['boot_console_output'][0]
+        escape(''.join(console_output))
+        version = re.search('Build datetime:',str(console_output))
+        version2 = str(console_output)[version.end():version.start()+36]
+
+    if version1 != version2:
+        output_file.write('\n')
+        output_file.write('New Firmware \n')
+        output_file.write('Build:')
+        output_file.write(version1)
+        output_file.write('\n')
+        output_file.write('↓')
+        output_file.write('\n')
+        output_file.write('Build:')
+        output_file.write(version2)
+        output_file.write('\n\n')
 
     if args.format == "csv":
-        for param_key in param_keys:
-            output_file.write(param_key)
-            if args.timestamps:
-                output_file.write(delimiter)
-                output_file.write(str(params[param_key]))
-                for t, name, value in ulog.changed_parameters:
-                    if name == param_key:
-                        output_file.write(delimiter)
-                        output_file.write(str(value))
-
+        if (set(param_keys2) - set(param_keys1)) or (set(param_keys1) - set(param_keys2)):
+            for param_key2 in set(param_keys2) - set(param_keys1):
+                output_file.write('New: ')
+                output_file.write(param_key2)
+                output_file.write(',')
+                output_file.write('\t')
+                output_file.write(str(round(params2[param_key2],6)))
                 output_file.write('\n')
-                output_file.write("timestamp")
-                output_file.write(delimiter)
-                output_file.write('0')
-                for t, name, value in ulog.changed_parameters:
-                    if name == param_key:
-                        output_file.write(delimiter)
-                        output_file.write(str(t))
-
-                output_file.write('\n')
-            else:
-                output_file.write(delimiter)
-                output_file.write(str(params[param_key]))
-                if not args.initial:
-                    for t, name, value in ulog.changed_parameters:
-                        if name == param_key:
-                            output_file.write(delimiter)
-                            output_file.write(str(value))
+            for param_key1 in set(param_keys1) - set(param_keys2):
+                output_file.write('Deleted: ')
+                output_file.write(param_key1)
                 output_file.write('\n')
 
-    elif args.format == "octave":
+        for param_key1 in param_keys1:
+            for param_key2 in param_keys2:
+                if (param_key1 == param_key2) and (param_key1 != 'LND_FLIGHT_T_LO') and (param_key1 != 'COM_FLIGHT_UUID'):
+                    if isinstance(params1[param_key1],float):
+                        if (abs(params1[param_key1] - params2[param_key2]) > 0.001):
+                            output_file.write(param_key1)
+                            output_file.write(':\t')
+                            if len(param_key1) < 15:
+                                output_file.write('\t')
+                            output_file.write(str(round(params1[param_key1],5)))
+                            output_file.write(' -> ')
+                            output_file.write(str(round(params2[param_key2],5)))
+                            output_file.write('\n')
+                    else:
+                        if (params1[param_key1] != params2[param_key2]):
+                            output_file.write(param_key1)
+                            output_file.write(':\t')
+                            if len(param_key1) < 15:
+                                output_file.write('\t')
+                            output_file.write(str(params1[param_key1]))
+                            output_file.write(' -> ')
+                            output_file.write(str(params2[param_key2]))
+                            output_file.write('\n')
 
-        for param_key in param_keys:
-            output_file.write('# name ')
-            output_file.write(param_key)
-            values = [params[param_key]]
-
-            if not args.initial:
-                for t, name, value in ulog.changed_parameters:
-                    if name == param_key:
-                        values += [value]
-
-            if len(values) > 1:
-                output_file.write('\n# type: matrix\n')
-                output_file.write('# rows: 1\n')
-                output_file.write('# columns: ')
-                output_file.write(str(len(values)) + '\n')
-                for value in values:
-                    output_file.write(str(value) + ' ')
-
-            else:
-                output_file.write('\n# type: scalar\n')
-                output_file.write(str(values[0]))
-
-            output_file.write('\n')
-
-    elif args.format == "qgc":
-
-        for param_key in param_keys:
-            sys_id = 1
-            comp_id = 1
-            delimiter = '\t'
-            param_value = params[param_key]
-
-            output_file.write(str(sys_id))
-            output_file.write(delimiter)
-            output_file.write(str(comp_id))
-            output_file.write(delimiter)
-            output_file.write(param_key)
-            output_file.write(delimiter)
-            output_file.write(str(param_value))
-            output_file.write(delimiter)
-
-            if isinstance(param_value, float):
-                # Float
-                param_type = 9
-            else:
-                # Int
-                param_type = 6
-
-            output_file.write(str(param_type))
-            output_file.write('\n')

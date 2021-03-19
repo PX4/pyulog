@@ -4,5 +4,4 @@ build/
 dist/
 *.egg-info
 .eggs/
-
-
+.history/
