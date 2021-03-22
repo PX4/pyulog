@@ -61,15 +61,21 @@ def main():
 
     ulog1 = ULog(ulog_file_name1, message_filter, disable_str_exceptions)
     ulog2 = ULog(ulog_file_name2, message_filter, disable_str_exceptions)
-
+    ulog3 = ULog(ulog_file_name2, message_filter, disable_str_exceptions)
     params1 = ulog1.initial_parameters
     params2 = ulog2.initial_parameters
+    p2 = ulog3.initial_parameters
+    changed_params1 = ulog1.changed_parameters
+    changed_params2 = ulog2.changed_parameters
     if args.default is not None:
         params1 = get_defaults(ulog1, args.default)
         args.initial = True
 
+    changed_param1_list = dict([(i[1],i[2]) for i in changed_params1])
     param_keys1 = sorted(params1.keys())
+    param_keys1_minusinflight = sorted(params1.keys()) - changed_param1_list.keys()
     param_keys2 = sorted(params2.keys())
+    k2 = sorted(p2.keys())
     delimiter = args.delimiter
     output_file = args.output_filename
     version1 = ''
@@ -97,15 +103,15 @@ def main():
         output_file.write('\n')
         output_file.write('Build:')
         output_file.write(version2)
-        output_file.write('\n\n')
+        output_file.write('\n')
 
     if args.format == "csv":
         if (set(param_keys2) - set(param_keys1)) or (set(param_keys1) - set(param_keys2)):
+            output_file.write('\n')
             for param_key2 in set(param_keys2) - set(param_keys1):
                 output_file.write('New: ')
                 output_file.write(param_key2)
-                output_file.write(',')
-                output_file.write('\t')
+                output_file.write(', ')
                 output_file.write(str(round(params2[param_key2],6)))
                 output_file.write('\n')
             for param_key1 in set(param_keys1) - set(param_keys2):
@@ -113,27 +119,48 @@ def main():
                 output_file.write(param_key1)
                 output_file.write('\n')
 
-        for param_key1 in param_keys1:
+        output_file.write('\nChanged Pre-flight:\n')
+        for param_key1 in param_keys1_minusinflight:
             for param_key2 in param_keys2:
-                if (param_key1 == param_key2) and (param_key1 != 'LND_FLIGHT_T_LO') and (param_key1 != 'COM_FLIGHT_UUID'):
+                if (param_key1 == param_key2) and (param_key1 != 'LND_FLIGHT_T_LO') and (param_key1 != 'LND_FLIGHT_T_HI') and (param_key1 != 'COM_FLIGHT_UUID'):
                     if isinstance(params1[param_key1],float):
                         if (abs(params1[param_key1] - params2[param_key2]) > 0.001):
-                            output_file.write(param_key1)
-                            output_file.write(':\t')
-                            if len(param_key1) < 15:
-                                output_file.write('\t')
-                            output_file.write(str(round(params1[param_key1],5)))
-                            output_file.write(' -> ')
-                            output_file.write(str(round(params2[param_key2],5)))
-                            output_file.write('\n')
+                                output_file.write(param_key1)
+                                output_file.write(': ')
+                                output_file.write(str(round(params1[param_key1],5)))
+                                output_file.write(' -> ')
+                                output_file.write(str(round(params2[param_key2],5)))
+                                output_file.write('\n')
                     else:
                         if (params1[param_key1] != params2[param_key2]):
-                            output_file.write(param_key1)
-                            output_file.write(':\t')
-                            if len(param_key1) < 15:
-                                output_file.write('\t')
-                            output_file.write(str(params1[param_key1]))
-                            output_file.write(' -> ')
-                            output_file.write(str(params2[param_key2]))
-                            output_file.write('\n')
+                                output_file.write(param_key1)
+                                output_file.write(': ')
+                                output_file.write(str(params1[param_key1]))
+                                output_file.write(' -> ')
+                                output_file.write(str(params2[param_key2]))
+                                output_file.write('\n')
 
+        matched_list = []
+        #last_matched_val = 0.0
+        output_file.write('\nChanged In-flight:\n')
+        for k2 in p2:
+            for i in changed_params2:
+                if (k2 == i[1]) and (k2 != 'LND_FLIGHT_T_LO') and (k2 != 'LND_FLIGHT_T_HI') and (k2 != 'COM_FLIGHT_UUID'):
+                    if isinstance(p2[k2],float):
+                        if (abs(p2[k2] - i[2]) > 0.001):
+                            p2[k2] = round(i[2],5)
+                            if not (i[1] in matched_list):
+                                matched_list.append(i[1])
+                    else:
+                        if (p2[k2] != i[2]):
+                            p2[k2] = i[2]
+                            if not (i[1] in matched_list):
+                                matched_list.append(i[1])
+
+        for i in matched_list:
+            output_file.write(i)
+            output_file.write(': ')
+            output_file.write(str(round(params2[i],5)))
+            output_file.write(' -> ')
+            output_file.write(str(round(p2[i],5)))
+            output_file.write('\n')
