@@ -97,7 +97,7 @@ def main():
         if version is not None:
             version2 = str(console_output)[version.end():version.start()+36]
         else:
-            version1 = ' Unknown'
+            version2 = ' Unknown'
 
 
     if (version1 != ' Unknown') and (version2 != ' Unknown') and (version1 != version2):
