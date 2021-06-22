@@ -85,17 +85,35 @@ def main():
         console_output = ulog1.msg_info_multiple_dict['boot_console_output'][0]
         escape(''.join(console_output))
         version = re.search('Build datetime:',str(console_output))
-        version1 = str(console_output)[version.end():version.start()+36]
+        if version is not None:
+            version1 = str(console_output)[version.end():version.start()+36]
+        else:
+            version1 = ' Unknown'
 
     if 'boot_console_output' in ulog2.msg_info_multiple_dict:
         console_output = ulog2.msg_info_multiple_dict['boot_console_output'][0]
         escape(''.join(console_output))
         version = re.search('Build datetime:',str(console_output))
-        version2 = str(console_output)[version.end():version.start()+36]
+        if version is not None:
+            version2 = str(console_output)[version.end():version.start()+36]
+        else:
+            version1 = ' Unknown'
 
-    if version1 != version2:
+
+    if (version1 != ' Unknown') and (version2 != ' Unknown') and (version1 != version2):
         output_file.write('\n')
         output_file.write('New Firmware \n')
+        output_file.write('Build:')
+        output_file.write(version1)
+        output_file.write('\n')
+        output_file.write('↓')
+        output_file.write('\n')
+        output_file.write('Build:')
+        output_file.write(version2)
+        output_file.write('\n')
+    elif (version1 == ' Unknown') or (version2 == ' Unknown'):
+        output_file.write('\n')
+        output_file.write('Unknown Firmware: no version information recorded.\n')
         output_file.write('Build:')
         output_file.write(version1)
         output_file.write('\n')
