@@ -1664,7 +1664,7 @@ def get_cmdclass(cmdclass=None):
             self._versioneer_generated_versions = versions
             # unless we update this, the command will keep using the old
             # version
-            self.distribution.metadata.version = '1.0.8'
+            self.distribution.metadata.version = '1.0.9'
             return _sdist.run(self)
 
         def make_release_tree(self, base_dir, files):
@@ -1698,7 +1698,7 @@ a section like:
 You will also need to edit your setup.py to use the results:
 
  import versioneer
- setup(version=1.0.8,
+ setup(version=1.0.9,
        cmdclass=versioneer.get_cmdclass(), ...)
 
 Please read the docstring in ./versioneer.py for configuration instructions,
@@ -1833,7 +1833,7 @@ def scan_setup_py():
         print("roughly like the following:")
         print("")
         print(" import versioneer")
-        print(" setup( version=1.0.8,")
+        print(" setup( version=1.0.9")
         print("        cmdclass=versioneer.get_cmdclass(),  ...)")
         print("")
         errors += 1

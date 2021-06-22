@@ -64,6 +64,6 @@ setup(
         ],
     },
     packages=find_packages(),
-    version='1.0.8',
+    version='1.0.9',
     cmdclass=versioneer.get_cmdclass(),
 )
