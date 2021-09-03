@@ -81,6 +81,8 @@ def main():
     version1 = ''
     version2 = ''
 
+    diffs = []
+
     if 'boot_console_output' in ulog1.msg_info_multiple_dict:
         console_output = ulog1.msg_info_multiple_dict['boot_console_output'][0]
         escape(''.join(console_output))
@@ -97,8 +99,7 @@ def main():
         if version is not None:
             version2 = str(console_output)[version.end():version.start()+36]
         else:
-            version2 = ' Unknown'
-
+            version1 = ' Unknown'
 
     if (version1 != ' Unknown') and (version2 != ' Unknown') and (version1 != version2):
         output_file.write('\n')
@@ -113,7 +114,7 @@ def main():
         output_file.write('\n')
     elif (version1 == ' Unknown') or (version2 == ' Unknown'):
         output_file.write('\n')
-        output_file.write('Unknown Firmware: no version information recorded.\n')
+        output_file.write('Unknown Firmware: version information missing.\n')
         output_file.write('Build:')
         output_file.write(version1)
         output_file.write('\n')
@@ -123,62 +124,68 @@ def main():
         output_file.write(version2)
         output_file.write('\n')
 
+    newlist = []
+    deletedlist = []
     if args.format == "csv":
         if (set(param_keys2) - set(param_keys1)) or (set(param_keys1) - set(param_keys2)):
-            output_file.write('\n')
+
             for param_key2 in set(param_keys2) - set(param_keys1):
-                output_file.write('New: ')
-                output_file.write(param_key2)
-                output_file.write(', ')
-                output_file.write(str(round(params2[param_key2],6)))
-                output_file.write('\n')
+                newlist.append((param_key2,str(round(params2[param_key2],6))))
+
             for param_key1 in set(param_keys1) - set(param_keys2):
-                output_file.write('Deleted: ')
-                output_file.write(param_key1)
-                output_file.write('\n')
+                deletedlist.append(param_key1)
+    newlist.sort()
+    deletedlist.sort()
+    for a in newlist:
+        output_file.write('New: ')
+        output_file.write(a[0])
+        output_file.write(', ')
+        output_file.write(a[1])
+        output_file.write('\n')
 
-        output_file.write('\nChanged Pre-flight:\n')
-        for param_key1 in param_keys1_minusinflight:
-            for param_key2 in param_keys2:
-                if (param_key1 == param_key2) and (param_key1 != 'LND_FLIGHT_T_LO') and (param_key1 != 'LND_FLIGHT_T_HI') and (param_key1 != 'COM_FLIGHT_UUID'):
-                    if isinstance(params1[param_key1],float):
-                        if (abs(params1[param_key1] - params2[param_key2]) > 0.001):
-                                output_file.write(param_key1)
-                                output_file.write(': ')
-                                output_file.write(str(round(params1[param_key1],5)))
-                                output_file.write(' -> ')
-                                output_file.write(str(round(params2[param_key2],5)))
-                                output_file.write('\n')
-                    else:
-                        if (params1[param_key1] != params2[param_key2]):
-                                output_file.write(param_key1)
-                                output_file.write(': ')
-                                output_file.write(str(params1[param_key1]))
-                                output_file.write(' -> ')
-                                output_file.write(str(params2[param_key2]))
-                                output_file.write('\n')
+    for a in deletedlist:
+        output_file.write('Deleted: ')
+        output_file.write(a)
+        output_file.write('\n')
 
-        matched_list = []
-        #last_matched_val = 0.0
-        output_file.write('\nChanged In-flight:\n')
-        for k2 in p2:
-            for i in changed_params2:
-                if (k2 == i[1]) and (k2 != 'LND_FLIGHT_T_LO') and (k2 != 'LND_FLIGHT_T_HI') and (k2 != 'COM_FLIGHT_UUID'):
-                    if isinstance(p2[k2],float):
-                        if (abs(p2[k2] - i[2]) > 0.001):
-                            p2[k2] = round(i[2],5)
-                            if not (i[1] in matched_list):
-                                matched_list.append(i[1])
-                    else:
-                        if (p2[k2] != i[2]):
-                            p2[k2] = i[2]
-                            if not (i[1] in matched_list):
-                                matched_list.append(i[1])
-
-        for i in matched_list:
-            output_file.write(i)
-            output_file.write(': ')
-            output_file.write(str(round(params2[i],5)))
-            output_file.write(' -> ')
-            output_file.write(str(round(p2[i],5)))
-            output_file.write('\n')
+    output_file.write('\nChanged Pre-flight:\n')
+    for param_key1 in param_keys1_minusinflight:
+        for param_key2 in param_keys2:
+            if (param_key1 == param_key2) and (param_key1 != 'LND_FLIGHT_T_LO') and (param_key1 != 'LND_FLIGHT_T_HI') and (param_key1 != 'COM_FLIGHT_UUID'):
+                if isinstance(params1[param_key1],float):
+                    if (abs(params1[param_key1] - params2[param_key2]) > 0.001):
+                        diffs.append((param_key1,str(round(params1[param_key1],5)),str(round(params2[param_key2],5))))
+                else:
+                    if (params1[param_key1] != params2[param_key2]):
+                        diffs.append((param_key1,str(params1[param_key1]),str(params2[param_key2])))
+    diffs.sort()
+    for a in diffs:
+        output_file.write(a[0])
+        output_file.write(': ')
+        output_file.write(a[1])
+        output_file.write(' -> ')
+        output_file.write(a[2])
+        output_file.write('\n')
+    matched_list = []
+    #last_matched_val = 0.0
+    output_file.write('\nChanged In-flight:\n')
+    for k2 in p2:
+        for i in changed_params2:
+            if (k2 == i[1]) and (k2 != 'LND_FLIGHT_T_LO') and (k2 != 'LND_FLIGHT_T_HI') and (k2 != 'COM_FLIGHT_UUID'):
+                if isinstance(p2[k2],float):
+                    if (abs(p2[k2] - i[2]) > 0.001):
+                        p2[k2] = round(i[2],5)
+                        if not (i[1] in matched_list):
+                            matched_list.append(i[1])
+                else:
+                    if (p2[k2] != i[2]):
+                        p2[k2] = i[2]
+                        if not (i[1] in matched_list):
+                            matched_list.append(i[1])
+    for i in matched_list:
+        output_file.write(i)
+        output_file.write(': ')
+        output_file.write(str(round(params2[i],5)))
+        output_file.write(' -> ')
+        output_file.write(str(round(p2[i],5)))
+        output_file.write('\n')
