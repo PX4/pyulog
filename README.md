@@ -211,3 +211,25 @@ optional arguments:
   --camera-trigger CAMERA_TRIGGER
                         Camera trigger topic name (e.g. camera_capture)
 ```
+
+### Convert ULog to rosbag files (ulog2rosbag)
+
+> **Note** You need a ROS environment with `px4_msgs` built and sourced.
+
+Usage:
+```
+usage: ulog2rosbag [-h] [-m MESSAGES] file.ulg result.bag
+
+Convert ULog to rosbag
+
+positional arguments:
+  file.ulg              ULog input file
+  result.ulg            rosbag output file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m MESSAGES, --messages MESSAGES
+                        Only consider given messages. Must be a comma-
+                        separated list of names, like
+                        'sensor_combined,vehicle_gps_position'
+```
