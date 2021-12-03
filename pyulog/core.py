@@ -467,7 +467,8 @@ class ULog(object):
 
         def initialize(self, data, header, subscriptions, ulog_object):
             msg_id, = ULog._unpack_ushort(data[:2])
-            if msg_id in subscriptions:
+            if msg_id in subscriptions \
+            and len(data)-2 == subscriptions[msg_id].dtype.itemsize:
                 subscription = subscriptions[msg_id]
                 # accumulate data to a buffer, will be parsed later
                 subscription.buffer += data[2:]
