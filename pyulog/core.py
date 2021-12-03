@@ -468,12 +468,16 @@ class ULog(object):
         def initialize(self, data, header, subscriptions, ulog_object):
             msg_id, = ULog._unpack_ushort(data[:2])
             if msg_id in subscriptions:
-                subscription = subscriptions[msg_id]
-                # accumulate data to a buffer, will be parsed later
-                subscription.buffer += data[2:]
-                t_off = subscription.timestamp_offset
-                # TODO: the timestamp can have another size than uint64
-                self.timestamp, = ULog._unpack_uint64(data[t_off+2:t_off+10])
+                if len(data)-2 == subscriptions[msg_id].dtype.itemsize:
+                    subscription = subscriptions[msg_id]
+                    # accumulate data to a buffer, will be parsed later
+                    subscription.buffer += data[2:]
+                    t_off = subscription.timestamp_offset
+                    # TODO: the timestamp can have another size than uint64
+                    self.timestamp, = ULog._unpack_uint64(data[t_off+2:t_off+10])
+                else:
+                    # Corrupt data: skip
+                    self.timestamp = 0
             else:
                 if not msg_id in ulog_object._filtered_message_ids:
                     # this is an error, but make it non-fatal
