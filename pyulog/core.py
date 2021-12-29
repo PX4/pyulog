@@ -234,6 +234,51 @@ class ULog(object):
         return [elem for elem in self._data_list
                 if elem.name == name and elem.multi_id == multi_instance][0]
 
+    class CombinedDataset(object):
+        def __init__(self, np_array, field_names):
+            self._np_array = np_array
+            self._field_names = field_names
+
+        def get_field(self, field_name):
+            return self._np_array[:, self._field_names.index(field_name)]
+
+    def combine_datasets(self, *names):
+        """ combines multiple datasets together, e.g.
+
+            Example: combine_datasets("position_setpoint_triplet", "vehicle_local_position")
+
+            position_setpoint_triplet with 325 entries and 88 fields
+            vehicle_local_position with 1540 entries and 46 fields
+
+            results in an numpy array with shape (325, 133)
+
+            Additional timestamp fields are omitted
+        """
+        datasets = []
+        field_names = []
+        for i, name in enumerate(names):
+            data = self.get_dataset(name)
+            datasets.append(data.np_array)
+            for f, field in enumerate(data.dtype.names):
+                if i == 0 or f != 0: # only use timestamp from first dataset
+                    field_names.append("{}.{}".format(name, field))
+        first = np.array(datasets[0])
+        shape = first.shape
+        datasets = datasets[1:]
+        for dataset in datasets:
+            shape = (shape[0], shape[1] + dataset.shape[1] - 1)
+        new = np.ndarray(shape)
+        new[:,0:first.shape[1]] = first
+        new[:,first.shape[1]:] = float("nan")
+        l = first.shape[1]
+        for dataset in datasets:
+            for j in reversed(range(shape[0])):
+                try:
+                    new[j,l:l+dataset.shape[1]-1] = dataset[np.max(np.where(dataset[:,0] <= new[j,0])), 1:]
+                except ValueError:
+                    pass # no dataset with smaller timestamp found. keep nan values
+            l += dataset.shape[1] - 1
+        return ULog.CombinedDataset(new, field_names)
 
     class Data(object):
         """ contains the final topic data for a single topic and instance """
@@ -243,14 +288,18 @@ class ULog(object):
             self.name = message_add_logged_obj.message_name
             self.field_data = message_add_logged_obj.field_data
             self.timestamp_idx = message_add_logged_obj.timestamp_idx
+            self.dtype = message_add_logged_obj.dtype
 
             # get data as numpy.ndarray
-            np_array = np.frombuffer(message_add_logged_obj.buffer,
+            _np_array = np.frombuffer(message_add_logged_obj.buffer,
                                      dtype=message_add_logged_obj.dtype)
+
+            self.np_array = np.ndarray((_np_array.shape[0], len(_np_array.dtype.names)))
             # convert into dict of np.array (which is easier to handle)
             self.data = {}
-            for name in np_array.dtype.names:
-                self.data[name] = np_array[name]
+            for i, name in enumerate(_np_array.dtype.names):
+                self.data[name] = _np_array[name]
+                self.np_array[:,i] = _np_array[name]
 
         def list_value_changes(self, field_name):
             """ get a list of (timestamp, value) tuples, whenever the value
