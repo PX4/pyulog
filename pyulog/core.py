@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import struct
+import copy
 import sys
 import numpy as np
 #pylint: disable=too-many-instance-attributes, unused-argument, missing-docstring
@@ -109,7 +110,9 @@ class ULog(object):
         self._start_timestamp = 0
         self._last_timestamp = 0
         self._msg_info_dict = {}
+        self._msg_info_dict_types = {}
         self._msg_info_multiple_dict = {}
+        self._msg_info_multiple_dict_types = {}
         self._initial_parameters = {}
         self._default_parameters = {}
         self._changed_parameters = []
@@ -234,12 +237,238 @@ class ULog(object):
         return [elem for elem in self._data_list
                 if elem.name == name and elem.multi_id == multi_instance][0]
 
+    def write_ulog(self, path):
+        """ write current data back into a ulog file """
+        ulog_file = open(path, "wb")
+
+        # Definition section
+        self._write_file_header(ulog_file)
+        self._write_flags(ulog_file)
+        self._write_format_messages(ulog_file)
+        self._write_info_messages(ulog_file)
+        self._write_info_multiple_message(ulog_file)
+        self._write_initial_parameters(ulog_file)
+        # TODO: Add support for default parameters
+
+        # Data section
+        self._write_logged_message_subscriptions(ulog_file)
+        self._write_data_section(ulog_file)
+
+        ulog_file.close()
+
+    def _write_file_header(self, file):
+        header_data = bytearray()
+        header_data.extend(self.HEADER_BYTES)
+        header_data.extend(struct.pack('B', self._file_version))
+        header_data.extend(struct.pack('<Q', self._start_timestamp))
+        if (len(header_data) != 16):
+            raise Exception("Written header is too short")
+
+        file.write(header_data)
+
+    def _write_flags(self, file):
+        data = bytearray()
+        data.extend(struct.pack('<' + 'B' * 8, *self._compat_flags))
+
+        # When writing the log back to a .ulg file, don't mark data as appended
+        imcompat_flags = copy.deepcopy(self._incompat_flags)
+        imcompat_flags[0] = imcompat_flags[0] & 0xFE
+        data.extend(struct.pack('<' + 'B' * 8, *self._incompat_flags))
+
+        offsets = [0, 0, 0]
+        data.extend(struct.pack('<' + 'Q' * 3, *offsets))
+
+        header = struct.pack('<HB', len(data), self.MSG_TYPE_FLAG_BITS)
+
+        file.write(header)
+        file.write(data)
+
+    def _write_info_messages(self, file):
+        for message in self._msg_info_dict.items():
+            value_type: str = self._msg_info_dict_types[message[0]]
+            key: str = value_type + ' ' + message[0]
+            value: str = message[1]
+
+            data = self._make_info_message_data(key, value, value_type)
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_INFO)
+
+            file.write(header)
+            file.write(data)
+
+    def _write_info_multiple_message(self, file):
+        for base_key, value_sets in self._msg_info_multiple_dict.items():
+            value_type: str = self._msg_info_multiple_dict_types[base_key]
+            key: str = value_type + ' ' + base_key
+
+            for value_set in value_sets:
+                continued = False
+                for value in value_set:
+                    data = self._make_info_message_data(key, value, value_type, continued)
+                    header = struct.pack('<HB', len(data), self.MSG_TYPE_INFO_MULTIPLE)
+
+                    file.write(header)
+                    file.write(data)
+
+                    continued = True
+
+    def _write_initial_parameters(self, file):
+        for parameter_name, value in self._initial_parameters.items():
+            if isinstance(value, int):
+                value_type = "int32_t"
+            elif isinstance(value, float):
+                value_type = "float"
+            else:
+                raise Exception("Found unknown parameter value type")
+
+            key: str = value_type + ' ' + parameter_name
+
+            data = self._make_info_message_data(key, value, value_type)
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER)
+
+            file.write(header)
+            file.write(data)
+
+    def _make_info_message_data(self, key: str, value, value_type: str, continued=None) -> bytes:
+        key_bytes = bytes(key, 'utf-8')
+        data = bytearray()
+
+        if continued is not None:
+            data.extend(struct.pack('<B', continued))
+
+        data.extend(struct.pack('<B', len(key_bytes)))
+        data.extend(key_bytes)
+
+        if value_type.startswith('char['):
+            value_bytes = bytes(value, 'utf-8')
+            data.extend(value_bytes)
+        else:
+            code = self._UNPACK_TYPES[value_type][0]
+            data.extend(struct.pack('<' + code, value))
+
+        return data
+
+    def _write_format_messages(self, file):
+        for message_format in self._message_formats.values():
+            data = bytearray()
+
+            data.extend(bytes(message_format.name + ':', 'utf-8'))
+            for field in message_format.fields:
+                # Determine the field type (e.g. int16_t or float[8])
+                field_type: str = field[0]
+                field_count: int = field[1]
+                field_name: str = field[2]
+
+                if field_count > 1:
+                    encoded_field = '%s[%d] %s;' % (field_type, field_count, field_name)
+                else:
+                    encoded_field = '%s %s;' % (field_type, field_name)
+                data.extend(bytes(encoded_field, 'utf-8'))
+
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_FORMAT)
+
+            file.write(header)
+            file.write(data)
+
+    def _write_logged_message_subscriptions(self, file):
+        data_sets = sorted(self._data_list, key=lambda x: x.msg_id)
+
+        for data_set in data_sets:
+            data = bytearray()
+            data.extend(struct.pack('<BH', data_set.multi_id, data_set.msg_id))
+            data.extend(bytes(data_set.name, 'utf-8'))
+
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_ADD_LOGGED_MSG)
+
+            file.write(header)
+            file.write(data)
+
+    def _write_data_section(self, file):
+        # Reconstruct all messages in the data section except for those with the type A, S, I, M, Q.
+        items = self._make_data_items()
+        items = items + self._make_logged_message_items()
+        items = items + self._make_dropout_items()
+        items = items + self._make_changed_param_items()
+        # TODO: Add support for tagged logged messages
+
+        # Sort items by timestamp
+        items.sort(key=lambda x: x[0])
+
+        for _, buffer in items:
+            file.write(buffer)
+
+    def _make_data_items(self):
+        data_sets = sorted(self._data_list, key=lambda x: x.msg_id)
+        data_items = []
+
+        for data_set in data_sets:
+            data_set_length = len(data_set.data[data_set.field_data[0].field_name])
+            for i_sample in range(data_set_length):
+                timestamp = data_set.data['timestamp'][i_sample]
+                msg_id = struct.pack('<H', data_set.msg_id)
+                data = bytearray()
+                data.extend(msg_id)
+                for field in data_set.field_data:
+                    field_name = field.field_name
+                    field_type = field.type_str
+                    field_encoding = self._UNPACK_TYPES[field_type][0]
+                    field_data = data_set.data[field_name][i_sample]
+                    data.extend(struct.pack('<' + field_encoding, field_data))
+
+                header = struct.pack('<HB', len(data), self.MSG_TYPE_DATA)
+                data_items.append((timestamp, header + data))
+
+        return data_items
+
+    def _make_logged_message_items(self):
+        message_items = []
+
+        for message in self._logged_messages:
+            data = bytearray()
+            data.extend(struct.pack('<BQ', message.log_level, message.timestamp))
+            data.extend(bytes(message.message, 'utf-8'))
+
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_LOGGING)
+            message_items.append((message.timestamp, header + data))
+
+        return message_items
+
+    def _make_dropout_items(self):
+        dropout_items = []
+
+        for dropout in self._dropouts:
+            data = bytearray()
+            data.extend(struct.pack('<H', dropout.duration))
+
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_DROPOUT)
+            dropout_items.append((dropout.timestamp, header + data))
+
+        return dropout_items
+
+    def _make_changed_param_items(self):
+        changed_param_items = []
+
+        for timestamp, name, value in self._changed_parameters:
+            if isinstance(value, int):
+                value_type = "int32_t"
+            elif isinstance(value, float):
+                value_type = "float"
+            else:
+                raise Exception("Found unknown parameter value type")
+
+            key: str = value_type + ' ' + name
+            data = self._make_info_message_data(key, value, value_type)
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER)
+            changed_param_items.append((timestamp, header + data))
+
+        return changed_param_items
+
 
     class Data(object):
         """ contains the final topic data for a single topic and instance """
 
         def __init__(self, message_add_logged_obj):
             self.multi_id = message_add_logged_obj.multi_id
+            self.msg_id = message_add_logged_obj.msg_id
             self.name = message_add_logged_obj.message_name
             self.field_data = message_add_logged_obj.field_data
             self.timestamp_idx = message_add_logged_obj.timestamp_idx
@@ -251,6 +480,23 @@ class ULog(object):
             self.data = {}
             for name in np_array.dtype.names:
                 self.data[name] = np_array[name]
+
+        def __eq__(self, other):
+            if not isinstance(other, ULog.Data):
+                return NotImplemented
+
+            # Compare data arrays
+            data_equal = True
+            arrays_equal = data_equal and self.data.keys() == other.data.keys()
+            for l_array, r_array in zip(self.data.values(), other.data.values()):
+                data_equal = data_equal and (l_array == r_array).all()
+
+            return (self.multi_id == other.multi_id and
+                    self.msg_id == other.msg_id and
+                    self.name == other.name and
+                    self.field_data == other.field_data and
+                    self.timestamp_idx == other.timestamp_idx and
+                    data_equal)
 
         def list_value_changes(self, field_name):
             """ get a list of (timestamp, value) tuples, whenever the value
@@ -340,6 +586,12 @@ class ULog(object):
                 if len(t) > 0:
                     self.fields.append(self._extract_type(t))
 
+        def __eq__(self, other):
+            if not isinstance(other, ULog.MessageFormat):
+                return NotImplemented
+
+            return self.name == other.name and self.fields == other.fields
+
         @staticmethod
         def _extract_type(field_str):
             field_str_split = field_str.split(' ')
@@ -363,6 +615,14 @@ class ULog(object):
             self.timestamp, = struct.unpack('<Q', data[1:9])
             self.message = ULog.parse_string(data[9:])
 
+        def __eq__(self, other):
+            if not isinstance(other, ULog.MessageLogging):
+                return NotImplemented
+
+            return (self.log_level == other.log_level and
+                    self.timestamp == other.timestamp and
+                    self.message == other.message)
+
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
                     ord('1'): 'ALERT',
@@ -382,6 +642,15 @@ class ULog(object):
             self.timestamp, = struct.unpack('<Q', data[3:11])
             self.message = ULog.parse_string(data[11:])
 
+        def __eq__(self, other):
+            if not isinstance(other, ULog.MessageLoggingTagged):
+                return NotImplemented
+
+            return (self.log_level == other.log_level and
+                    self.tag == other.tag and
+                    self.timestamp == other.timestamp and
+                    self.message == other.message)
+
         def log_level_str(self):
             return {ord('0'): 'EMERGENCY',
                     ord('1'): 'ALERT',
@@ -398,11 +667,23 @@ class ULog(object):
             self.duration, = struct.unpack('<H', data)
             self.timestamp = timestamp
 
+        def __eq__(self, other):
+            if not isinstance(other, ULog.MessageDropout):
+                return NotImplemented
+
+            return self.duration == other.duration and self.timestamp == other.timestamp
+
     class _FieldData(object):
         """ Type and name of a single ULog data field """
         def __init__(self, field_name, type_str):
             self.field_name = field_name
             self.type_str = type_str
+
+        def __eq__(self, other):
+            if not isinstance(other, ULog._FieldData):
+                return NotImplemented
+
+            return self.field_name == other.field_name and self.type_str == other.type_str
 
     class _MessageAddLogged(object):
         """ ULog add logging data message representation """
@@ -509,6 +790,7 @@ class ULog(object):
                 self._msg_info_multiple_dict[msg_info.key].append([msg_info.value])
         else:
             self._msg_info_multiple_dict[msg_info.key] = [[msg_info.value]]
+            self._msg_info_multiple_dict_types[msg_info.key] = msg_info.type
 
     def _load_file(self, log_file, message_name_filter_list):
         """ load and parse an ULog file into memory """
@@ -560,6 +842,7 @@ class ULog(object):
                 if header.msg_type == self.MSG_TYPE_INFO:
                     msg_info = self._MessageInfo(data, header)
                     self._msg_info_dict[msg_info.key] = msg_info.value
+                    self._msg_info_dict_types[msg_info.key] = msg_info.type
                 elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
                     msg_info = self._MessageInfo(data, header, is_info_multiple=True)
                     self._add_message_info_multiple(msg_info)
@@ -711,6 +994,7 @@ class ULog(object):
                     if header.msg_type == self.MSG_TYPE_INFO:
                         msg_info = self._MessageInfo(data, header)
                         self._msg_info_dict[msg_info.key] = msg_info.value
+                        self._msg_info_dict_types[msg_info.key] = msg_info.type
                     elif header.msg_type == self.MSG_TYPE_INFO_MULTIPLE:
                         msg_info = self._MessageInfo(data, header, is_info_multiple=True)
                         self._add_message_info_multiple(msg_info)
