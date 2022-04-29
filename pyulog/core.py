@@ -239,22 +239,19 @@ class ULog(object):
 
     def write_ulog(self, path):
         """ write current data back into a ulog file """
-        ulog_file = open(path, "wb")
+        with open(path, "wb") as ulog_file:
+            # Definition section
+            self._write_file_header(ulog_file)
+            self._write_flags(ulog_file)
+            self._write_format_messages(ulog_file)
+            self._write_info_messages(ulog_file)
+            self._write_info_multiple_message(ulog_file)
+            self._write_initial_parameters(ulog_file)
+            self._write_default_parameters(ulog_file)
 
-        # Definition section
-        self._write_file_header(ulog_file)
-        self._write_flags(ulog_file)
-        self._write_format_messages(ulog_file)
-        self._write_info_messages(ulog_file)
-        self._write_info_multiple_message(ulog_file)
-        self._write_initial_parameters(ulog_file)
-        self._write_default_parameters(ulog_file)
-
-        # Data section
-        self._write_logged_message_subscriptions(ulog_file)
-        self._write_data_section(ulog_file)
-
-        ulog_file.close()
+            # Data section
+            self._write_logged_message_subscriptions(ulog_file)
+            self._write_data_section(ulog_file)
 
     def _write_file_header(self, file):
         header_data = bytearray()
@@ -517,17 +514,17 @@ class ULog(object):
                 return NotImplemented
 
             # Compare data arrays
-            data_equal = True
-            arrays_equal = data_equal and self.data.keys() == other.data.keys()
-            for l_array, r_array in zip(self.data.values(), other.data.values()):
-                data_equal = data_equal and np.array_equal(l_array, r_array, equal_nan=True)
+            arrays_equal = self.data.keys() == other.data.keys()
+            if (arrays_equal):
+                for l_array, r_array in zip(self.data.values(), other.data.values()):
+                    arrays_equal = arrays_equal and np.array_equal(l_array, r_array, equal_nan=True)
 
             return (self.multi_id == other.multi_id and
                     self.msg_id == other.msg_id and
                     self.name == other.name and
                     self.field_data == other.field_data and
                     self.timestamp_idx == other.timestamp_idx and
-                    data_equal)
+                    arrays_equal)
 
         def list_value_changes(self, field_name):
             """ get a list of (timestamp, value) tuples, whenever the value

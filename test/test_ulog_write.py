@@ -14,7 +14,6 @@ class Test(unittest.TestCase):
     @data('sample', 'sample_appended', 'sample_appended_multiple', 'sample_logging_tagged_and_default_params')
     def test_ulog_write(self, base_name):
         tmpdir = tempfile.TemporaryDirectory()
-        print('writing ulog to ', tmpdir)
         ulog_file_name = os.path.join(TEST_PATH, base_name + '.ulg')
         written_ulog_file_name = os.path.join(tmpdir.name, base_name + '_copy.ulg')
 
@@ -63,7 +62,5 @@ class Test(unittest.TestCase):
 
         # Check changed parameters 'P'
         assert original.changed_parameters == copied.changed_parameters
-
-        pass
 
 # vim: set et fenc=utf-8 ft=python ff=unix sts=4 sw=4 ts=4 : 
