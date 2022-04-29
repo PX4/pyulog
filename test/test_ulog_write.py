@@ -11,7 +11,7 @@ TEST_PATH = os.path.dirname(os.path.abspath(
 @ddt
 class Test(unittest.TestCase):
 
-    @data('sample', 'sample_appended', 'sample_appended_multiple')
+    @data('sample', 'sample_appended', 'sample_appended_multiple', 'sample_logging_tagged_and_default_params')
     def test_ulog_write(self, base_name):
         tmpdir = tempfile.TemporaryDirectory()
         print('writing ulog to ', tmpdir)

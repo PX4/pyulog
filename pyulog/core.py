@@ -411,9 +411,9 @@ class ULog(object):
         # Reconstruct all messages in the data section except for those with the type A, S, I, M, Q.
         items = self._make_data_items()
         items = items + self._make_logged_message_items()
+        items = items + self._make_tagged_logged_message_items()
         items = items + self._make_dropout_items()
         items = items + self._make_changed_param_items()
-        # TODO: Add support for tagged logged messages
 
         # Sort items by timestamp
         items.sort(key=lambda x: x[0])
@@ -454,6 +454,20 @@ class ULog(object):
 
             header = struct.pack('<HB', len(data), self.MSG_TYPE_LOGGING)
             message_items.append((message.timestamp, header + data))
+
+        return message_items
+
+    def _make_tagged_logged_message_items(self):
+        message_items = []
+
+        for message_list in self._logged_messages_tagged.values():
+            for message in message_list:
+                data = bytearray()
+                data.extend(struct.pack('<BHQ', message.log_level, message.tag, message.timestamp))
+                data.extend(bytes(message.message, 'utf-8'))
+
+                header = struct.pack('<HB', len(data), self.MSG_TYPE_LOGGING_TAGGED)
+                message_items.append((message.timestamp, header + data))
 
         return message_items
 
