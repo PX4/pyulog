@@ -638,7 +638,7 @@ class ULog(object):
 
         def __init__(self, data, header):
             self.log_level, = struct.unpack('<B', data[0:1])
-            self.tag = struct.unpack('<H', data[1:3])
+            self.tag, = struct.unpack('<H', data[1:3])
             self.timestamp, = struct.unpack('<Q', data[3:11])
             self.message = ULog.parse_string(data[11:])
 
