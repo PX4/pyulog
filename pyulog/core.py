@@ -489,7 +489,7 @@ class ULog(object):
             data_equal = True
             arrays_equal = data_equal and self.data.keys() == other.data.keys()
             for l_array, r_array in zip(self.data.values(), other.data.values()):
-                data_equal = data_equal and (l_array == r_array).all()
+                data_equal = data_equal and np.array_equal(l_array, r_array, equal_nan=True)
 
             return (self.multi_id == other.multi_id and
                     self.msg_id == other.msg_id and
