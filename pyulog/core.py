@@ -248,7 +248,7 @@ class ULog(object):
         self._write_info_messages(ulog_file)
         self._write_info_multiple_message(ulog_file)
         self._write_initial_parameters(ulog_file)
-        # TODO: Add support for default parameters
+        self._write_default_parameters(ulog_file)
 
         # Data section
         self._write_logged_message_subscriptions(ulog_file)
@@ -313,20 +313,45 @@ class ULog(object):
 
     def _write_initial_parameters(self, file):
         for parameter_name, value in self._initial_parameters.items():
-            if isinstance(value, int):
-                value_type = "int32_t"
-            elif isinstance(value, float):
-                value_type = "float"
-            else:
-                raise Exception("Found unknown parameter value type")
-
-            key: str = value_type + ' ' + parameter_name
-
-            data = self._make_info_message_data(key, value, value_type)
+            data = self._make_parameter_data(parameter_name, value)
             header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER)
 
             file.write(header)
             file.write(data)
+
+    def _write_default_parameters(self, file):
+        default_types = {}
+
+        for bit in self._default_parameters.keys():
+            for name, value in self._default_parameters[bit].items():
+                if name in default_types:
+                    bitfield, _ = default_types[name]
+                    bitfield = bitfield | (1 << bit)
+                    default_types[name] = (bitfield, value)
+                else:
+                    default_types[name] = (1 << bit, value)
+
+        for parameter_name, (bitfield, value) in default_types.items():
+            data = bytearray()
+            data.extend(struct.pack('<B', bitfield))
+            data.extend(self._make_parameter_data(parameter_name, value))
+            header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER_DEFAULT)
+
+            file.write(header)
+            file.write(data)
+
+
+    def _make_parameter_data(self, name: str, value) -> bytearray:
+        if isinstance(value, int):
+            value_type = "int32_t"
+        elif isinstance(value, float):
+            value_type = "float"
+        else:
+            raise Exception("Found unknown parameter value type")
+
+        key: str = value_type + ' ' + name
+
+        return self._make_info_message_data(key, value, value_type)
 
     def _make_info_message_data(self, key: str, value, value_type: str, continued=None) -> bytes:
         key_bytes = bytes(key, 'utf-8')
@@ -448,15 +473,7 @@ class ULog(object):
         changed_param_items = []
 
         for timestamp, name, value in self._changed_parameters:
-            if isinstance(value, int):
-                value_type = "int32_t"
-            elif isinstance(value, float):
-                value_type = "float"
-            else:
-                raise Exception("Found unknown parameter value type")
-
-            key: str = value_type + ' ' + name
-            data = self._make_info_message_data(key, value, value_type)
+            data = self._make_parameter_data(name, value)
             header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER)
             changed_param_items.append((timestamp, header + data))
 
