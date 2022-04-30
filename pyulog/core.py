@@ -258,7 +258,7 @@ class ULog(object):
         header_data.extend(self.HEADER_BYTES)
         header_data.extend(struct.pack('B', self._file_version))
         header_data.extend(struct.pack('<Q', self._start_timestamp))
-        if (len(header_data) != 16):
+        if len(header_data) != 16:
             raise Exception("Written header is too short")
 
         file.write(header_data)
@@ -337,8 +337,7 @@ class ULog(object):
             file.write(header)
             file.write(data)
 
-
-    def _make_parameter_data(self, name: str, value) -> bytearray:
+    def _make_parameter_data(self, name: str, value) -> bytes:
         if isinstance(value, int):
             value_type = "int32_t"
         elif isinstance(value, float):
@@ -489,7 +488,6 @@ class ULog(object):
             changed_param_items.append((timestamp, header + data))
 
         return changed_param_items
-
 
     class Data(object):
         """ contains the final topic data for a single topic and instance """
