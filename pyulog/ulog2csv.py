@@ -74,7 +74,7 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_ex
         output_file_name = fmt.format(output_file_prefix, d.name, d.multi_id)
         fmt = 'Writing {0} ({1} data points)'
         # print(fmt.format(output_file_name, len(d.data['timestamp'])))
-        with open(output_file_name, 'w') as csvfile:
+        with open(output_file_name, 'w', encoding='utf-8') as csvfile:
 
             # use same field order as in the log, except for the timestamp
             data_keys = [f.field_name for f in d.field_data]

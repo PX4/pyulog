@@ -513,7 +513,7 @@ class ULog(object):
     def _load_file(self, log_file, message_name_filter_list):
         """ load and parse an ULog file into memory """
         if isinstance(log_file, str):
-            self._file_handle = open(log_file, "rb")
+            self._file_handle = open(log_file, "rb") #pylint: disable=consider-using-with
         else:
             self._file_handle = log_file
 
@@ -572,9 +572,8 @@ class ULog(object):
                 elif header.msg_type == self.MSG_TYPE_PARAMETER_DEFAULT:
                     msg_param = self._MessageParameterDefault(data, header)
                     self._add_parameter_default(msg_param)
-                elif (header.msg_type == self.MSG_TYPE_ADD_LOGGED_MSG or
-                      header.msg_type == self.MSG_TYPE_LOGGING or
-                      header.msg_type == self.MSG_TYPE_LOGGING_TAGGED):
+                elif header.msg_type in (self.MSG_TYPE_ADD_LOGGED_MSG,
+                      self.MSG_TYPE_LOGGING, self.MSG_TYPE_LOGGING_TAGGED):
                     self._file_handle.seek(-(3+header.msg_size), 1)
                     break # end of section
                 elif header.msg_type == self.MSG_TYPE_FLAG_BITS:
