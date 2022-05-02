@@ -317,10 +317,10 @@ class ULog(object):
             file.write(data)
 
     def _write_default_parameters(self, file):
-        for bit in self._default_parameters.keys():
+        for bit, bit_dict in self._default_parameters.items():
             bitfield = 1 << bit
 
-            for name, value in self._default_parameters[bit].items():
+            for name, value in bit_dict.items():
                 data = bytearray()
                 data.extend(struct.pack('<B', bitfield))
                 data.extend(self._make_parameter_data(name, value))
@@ -505,7 +505,7 @@ class ULog(object):
 
             # Compare data arrays
             arrays_equal = self.data.keys() == other.data.keys()
-            if (arrays_equal):
+            if arrays_equal:
                 for l_array, r_array in zip(self.data.values(), other.data.values()):
                     arrays_equal = arrays_equal and np.array_equal(l_array, r_array, equal_nan=True)
 
