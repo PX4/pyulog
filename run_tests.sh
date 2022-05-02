@@ -1,4 +1,4 @@
 #! /bin/bash
 
-python setup.py test && pylint pyulog/*.py
+pytest test && pylint pyulog/*.py
 

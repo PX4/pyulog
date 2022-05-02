@@ -27,7 +27,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python setup.py build install
-          pip install pylint ddt
+          pip install pylint ddt pytest
       - name : Running Tests
         run: |
           ./run_tests.sh
