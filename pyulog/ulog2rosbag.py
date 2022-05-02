@@ -8,15 +8,14 @@ from __future__ import print_function
 
 from collections import defaultdict
 import argparse
-import os
 import re
-import rospy
-import rosbag
-from px4_msgs import msg as px4_msgs
+import rospy # pylint: disable=import-error
+import rosbag # pylint: disable=import-error
+from px4_msgs import msg as px4_msgs # pylint: disable=import-error
 
 from .core import ULog
 
-#pylint: disable=too-many-locals, invalid-name, consider-using-enumerate
+#pylint: disable=too-many-locals, invalid-name
 
 def main():
     """Command line interface"""
@@ -37,8 +36,9 @@ def main():
 
     convert_ulog2rosbag(args.filename, args.bag, args.messages, args.ignore)
 
-# from https://stackoverflow.com/questions/19053707/converting-snake-case-to-lower-camel-case-lowercamelcase
+# https://stackoverflow.com/questions/19053707/converting-snake-case-to-lower-camel-case-lowercamelcase
 def to_camel_case(snake_str):
+    """ Convert snake case string to camel case """
     components = snake_str.split("_")
     return ''.join(x.title() for x in components)
 
