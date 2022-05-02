@@ -317,25 +317,17 @@ class ULog(object):
             file.write(data)
 
     def _write_default_parameters(self, file):
-        default_types = {}
-
         for bit in self._default_parameters.keys():
+            bitfield = 1 << bit
+
             for name, value in self._default_parameters[bit].items():
-                if name in default_types:
-                    bitfield, _ = default_types[name]
-                    bitfield = bitfield | (1 << bit)
-                    default_types[name] = (bitfield, value)
-                else:
-                    default_types[name] = (1 << bit, value)
+                data = bytearray()
+                data.extend(struct.pack('<B', bitfield))
+                data.extend(self._make_parameter_data(name, value))
+                header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER_DEFAULT)
 
-        for parameter_name, (bitfield, value) in default_types.items():
-            data = bytearray()
-            data.extend(struct.pack('<B', bitfield))
-            data.extend(self._make_parameter_data(parameter_name, value))
-            header = struct.pack('<HB', len(data), self.MSG_TYPE_PARAMETER_DEFAULT)
-
-            file.write(header)
-            file.write(data)
+                file.write(header)
+                file.write(data)
 
     def _make_parameter_data(self, name: str, value) -> bytes:
         if isinstance(value, int):
