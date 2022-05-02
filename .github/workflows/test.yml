@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false  # don't cancel if a job from the matrix fails
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ["3.8", "3.9", "3.10"]
 
     steps:
       - uses: actions/checkout@v2
@@ -26,8 +26,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
         run: |
+          pip install pylint ddt pytest cython
           python setup.py build install
-          pip install pylint ddt pytest
       - name : Running Tests
         run: |
           ./run_tests.sh
