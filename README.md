@@ -36,7 +36,7 @@ pip install -e .
 ## Testing
 
 ```bash
-nosetests -sv
+pytest test
 ```
 
 or 

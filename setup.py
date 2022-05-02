@@ -51,8 +51,7 @@ setup(
     classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
     platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
     install_requires=['numpy'],
-    tests_require=['nose', 'ddt'],
-    test_suite='nose.collector',
+    tests_require=['pytest', 'ddt'],
     entry_points = {
         'console_scripts': [
             'ulog_extract_gps_dump=pyulog.extract_gps_dump:main',
