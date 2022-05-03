@@ -170,7 +170,7 @@ module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
 module-name-hint=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
 
 # Regular expression matching correct method names
-method-rgx=[a-z_][a-z0-9_]{2,30}$
+method-rgx=[a-z_][a-z0-9_]{2,40}$
 
 # Naming hint for method names
 method-name-hint=[a-z_][a-z0-9_]{2,30}$
@@ -246,7 +246,7 @@ single-line-if-stmt=no
 no-space-check=trailing-comma,dict-separator
 
 # Maximum number of lines in a module
-max-module-lines=1000
+max-module-lines=1200
 
 # String used as indentation unit. This is usually "    " (4 spaces) or "\t" (1
 # tab).
@@ -399,7 +399,7 @@ max-attributes=7
 min-public-methods=2
 
 # Maximum number of public methods for a class (see R0904).
-max-public-methods=20
+max-public-methods=25
 
 # Maximum number of boolean expressions in a if statement
 max-bool-expr=5
