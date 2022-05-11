@@ -242,7 +242,7 @@ class ULog(object):
         def get_field(self, field_name):
             return self._np_array[:, self._field_names.index(field_name)]
 
-    def combine_datasets(self, *names):
+    def combine_datasets(self, *names, **kwargs):
         """ combines multiple datasets together, e.g.
 
             Example: combine_datasets("position_setpoint_triplet", "vehicle_local_position")
@@ -254,6 +254,11 @@ class ULog(object):
 
             Additional timestamp fields are omitted
         """
+
+        mask = None
+        if "mask" in kwargs:
+            mask = kwargs["mask"]
+
         datasets = []
         field_names = []
         for i, name in enumerate(names):
@@ -263,6 +268,8 @@ class ULog(object):
                 if i == 0 or f != 0: # only use timestamp from first dataset
                     field_names.append("{}.{}".format(name, field))
         first = np.array(datasets[0])
+        if mask is not None:
+            first = first[mask]
         shape = first.shape
         datasets = datasets[1:]
         for dataset in datasets:
