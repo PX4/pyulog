@@ -148,7 +148,7 @@ def main():
         output_file.write(a)
         output_file.write('\n')
 
-    output_file.write('\nChanged Pre-flight:\n')
+    output_file.write('\n\nChanged Pre-flight:\n')
     for param_key1 in param_keys1_minusinflight:
         for param_key2 in param_keys2:
             if (param_key1 == param_key2) and (param_key1 != 'LND_FLIGHT_T_LO') and (param_key1 != 'LND_FLIGHT_T_HI') and (param_key1 != 'COM_FLIGHT_UUID'):
