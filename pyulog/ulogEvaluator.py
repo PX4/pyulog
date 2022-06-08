@@ -73,12 +73,12 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_ex
         base_name = os.path.basename(output_file_prefix)
         output_file_prefix = os.path.join(output, base_name)
 
-    #roll_integ(data)
-    #pitch_integ(data)
+    consum(ulog)
+    msg_analyzer(ulog)
+    roll_integ(data)
+    pitch_integ(data)
     #fx21(data)
     #waypo(ulog)
-    #consum(ulog)
-    msg_analyzer(ulog)
 
 
 def roll_integ(data):
@@ -105,11 +105,11 @@ def roll_integ(data):
             maxint = rateint
 
     if absmaxint < 20:
-        print('Roll integral max =', maxint)
+        print('Roll integral max =', '{:.2f}'.format(maxint))
     elif 20 <= absmaxint < 40:
-        print('Roll integral max =', maxint)
+        print('Roll integral max =', '{:.2f}'.format(maxint))
     else:
-        print('Roll integral max =', maxint)
+        print('Roll integral max =', '{:.2f}'.format(maxint))
 
 
 def pitch_integ(data):
@@ -136,11 +136,11 @@ def pitch_integ(data):
             maxint = rateint
 
     if absmaxint < 20:
-        print('Pitch integral max =', maxint)
+        print('Pitch integral max =', '{:.2f}'.format(maxint))
     elif 20 <= absmaxint < 40:
-        print('Pitch integral max =', maxint)
+        print('Pitch integral max =', '{:.2f}'.format(maxint))
     else:
-        print('Pitch integral max =', maxint)
+        print('Pitch integral max =', '{:.2f}'.format(maxint))
 
 
 def fx21(data):
@@ -238,7 +238,23 @@ def consum(ulog):
     print('Average consumption = ', '{:.2f}'.format(watt), ' W')
 
 def msg_analyzer(ulog):
+    
+    for m in ulog.logged_messages:
+        mt = m.timestamp
+        mmsg = m.message
+        if mmsg == '[runway_takeoff] #Taking off.':
+            rwto_time = mt
+        if mmsg == '[runway_takeoff] #Takeoff airspeed reached':
+            asp_r = mt
+    
+    m1, s1 = divmod(int(rwto_time/1e6), 60)
+    h1, m1 = divmod(m1, 60)
+    print("Taking off : {:d}:{:02d}:{:02d}".format(h1, m1, s1))
 
-    m = ulog.logged_messages
-    print(m)
+    m1, s1 = divmod(int(asp_r/1e6), 60)
+    h1, m1 = divmod(m1, 60)
+    print("Takeoff airspeed reached : {:d}:{:02d}:{:02d}".format(h1, m1, s1))
 
+
+#if __name__ == "__main__":
+#    main()

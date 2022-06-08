@@ -61,6 +61,7 @@ setup(
             'upc=pyulog.params:main',
             'ulog2csv=pyulog.ulog2csv:main',
             'ulog2kml=pyulog.ulog2kml:main',
+            'ueval=pyulog.ulogEvaluator:main'
         ],
     },
     packages=find_packages(),
