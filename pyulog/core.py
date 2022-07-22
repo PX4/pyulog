@@ -134,8 +134,8 @@ class ULog(object):
 
         ULog._disable_str_exceptions = disable_str_exceptions
 
-        self._load_file(log_file, message_name_filter_list)
-
+        if log_file is not None:
+            self._load_file(log_file, message_name_filter_list)
 
     ## parsed data
 
@@ -1086,6 +1086,8 @@ class ULog(object):
             if len(value.buffer) > 0: # only add if we have data
                 data_item = ULog.Data(value)
                 self._data_list.append(data_item)
+        # Sorting is necessary to be able to compare two ULogs correctly
+        self.data_list.sort(key=lambda ds: (ds.name, ds.multi_id))
 
     def _check_packet_corruption(self, header):
         """
