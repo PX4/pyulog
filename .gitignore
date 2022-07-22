@@ -4,5 +4,5 @@ build/
 dist/
 *.egg-info
 .eggs/
-
+*.sqlite3
 

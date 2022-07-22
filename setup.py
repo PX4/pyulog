@@ -66,4 +66,5 @@ setup(
     packages=find_packages(),
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
+    include_package_data=True,
 )
