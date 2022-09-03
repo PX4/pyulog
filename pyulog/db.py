@@ -3,8 +3,8 @@ Module containing the DatabaseULog class.
 '''
 
 import sqlite3
-import numpy as np
 import contextlib
+import numpy as np
 from pyulog import ULog
 
 # pylint: disable=too-many-instance-attributes
@@ -109,7 +109,7 @@ class DatabaseULog(ULog):
         '''The primary of the key, pointing to the correct log row in the database.'''
         return self._pk
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-branches
     def load(self, lazy=True):
         '''
         Load all necessary data from the database, except for the data series
@@ -165,7 +165,10 @@ class DatabaseULog(ULog):
                 ''', (self._pk,))
             dataset_results = cur.fetchall()
             for dataset_name, multi_id in dataset_results:
-                dataset = self.get_dataset(dataset_name, multi_instance=multi_id, lazy=lazy, db_cursor=cur)
+                dataset = self.get_dataset(dataset_name,
+                                           multi_instance=multi_id,
+                                           lazy=lazy,
+                                           db_cursor=cur)
                 self._data_list.append(dataset)
 
             # dropouts
