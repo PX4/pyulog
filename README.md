@@ -233,3 +233,31 @@ optional arguments:
                         separated list of names, like
                         'sensor_combined,vehicle_gps_position'
 ```
+### Migrate/setup the database for use with the DatabaseULog class (ulog_migratedb)
+
+Usage:
+```
+usage: ulog_migratedb [-h] [-d DB_PATH] [-n] [-s SQL_DIR] [-f]
+
+Setup the database for DatabaseULog
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DB_PATH, --database DB_PATH
+                        Path to the database file
+  -n, --noop            Only print results, do not execute migration scripts.
+  -s SQL_DIR, --sql SQL_DIR
+                        Directory with migration SQL files
+  -f, --force           Run the migration script even if the database is not
+                        created with this script.
+
+```
+Example output (to console):
+```
+ubuntu@ubuntu:~/github/pyulog$ ulog_migratedb
+Using migration files in /home/ubuntu/github/pyulog/pyulog/sql.
+Database file pyulog.sqlite3 not found, creating it from scratch.
+Current schema version: 0 (database) and 1 (code).
+Executing /home/ubuntu/github/pyulog/pyulog/sql/pyulog.1.sql.
+Migration done.
+```

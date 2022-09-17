@@ -1,3 +1,4 @@
+BEGIN;
 CREATE TABLE IF NOT EXISTS ULog (
         Id INTEGER PRIMARY KEY AUTOINCREMENT,
         FileVersion INT,
@@ -113,3 +114,4 @@ CREATE TABLE IF NOT EXISTS ULogDefaultParameter (
         Value BLOB,
         ULogId INT REFERENCES ULog (Id)
 );
+COMMIT;
