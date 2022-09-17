@@ -14,33 +14,37 @@ class DatabaseULog(ULog):
     writes to a sqlite3 database instead of a file.
 
     The first time you see a ulog file, instantiate a DatabaseULog directly
-    from a ULog object created from that file, and call the save() method. This
-    writes to the database, so that later access is achieved simply by
-    providing the primary_key, upon which this class loads all needed fields
-    from the database.
+    from a ulog file, and then call save() to write it to the database. Later
+    it can be accessed by providing the primary_key, upon which this class
+    loads all needed fields from the database.
 
     This class is currently designed to be write-once only, so you cannot
     update existing database entries. This could and should be changed in the
     future.
 
-    Another weakness of the class is that there are some silently failing
+    A weakness of the implementation is that there are some silently failing
     states if you don't call save() immediately after instantiating from a ULog
-    object. The requirement of explicit save() is to prevent unexpected,
-    sudden side effects, which is considered worse than the current solution.
+    object. The requirement of explicit save() is to prevent unexpected, sudden
+    side effects, which is considered worse than the current solution.
 
     Example usage:
+    > from pyulog.db import DatabaseULog
+    >
+    > db_handle = DatabaseULog.get_db_handle('dbulog.sqlite3')
+    > dbulog = DatabaseULog(db_handle, log_file='example.ulg') # Slow
+    > pk = dbulog.save()
+    > # [...]
+    > dbulog = DatabaseULog(db_handle, primary_key=pk) # Fast
 
-    from pyulog import Ulog
-    from pyulog.db import DatabaseULog
-
-    db_handle = DatabaseULog.get_db_handle('dbulog.sqlite3')
-
-    ulog = ULog('example.ulg') # Slow
-    dbulog = DatabaseULog(db_handle, ulog=ulog)
-    pk = dbulog.save()
-    # [...]
-    dbulog = DatabaseULog(db_handle, primary_key=pk) # Fast
+    SCHEMA_VERSION specifies which version of the database schema (as read from
+    "PRAGMA user_version") this file is supposed to match. This is done to
+    ensure consistency between the database operations and the state of the
+    database. If SCHEMA_VERSION is higher than what is found in the database,
+    then it means that the datbaase is has not been updated, and the
+    contsructor will throw an exception. See the documentation of
+    "ulog_migratedb" for more information.
     '''
+    SCHEMA_VERSION = 1
 
     @staticmethod
     def get_db_handle(db_path):
@@ -75,22 +79,34 @@ class DatabaseULog(ULog):
 
     def __init__(self, db_handle, primary_key=None, log_file=None, lazy=True, **kwargs):
         '''
-        You always need a database handle, but there are two options for the
-        other parameters:
-        - For reading a log from the database, you just provide its primary
-          key. This will access the database and read the relevant info (if the
-          primary key exists).
-        - For storing a brand new log in the database, you provide its already
-          instantiated ULog object. Note that this does not immediately save
-          the object to the database: that is only done by explicitly calling
-          save().
-        You cannot supply both parameters.
+        You always need the database handle (which can be generated with
+        DatabaseULog.get_db_handle), but there are two options for the
+        parameters "primary_key" and "log_file":
+        - For storing a new log in the database, supply the corresponding
+          log_file parameter, but leave the primary_key field at None.
+        - For reading an existing log from the database, supply the desired
+          primary_key parameter, but leave the log_file parameter at None.
+        You cannot supply both of these parameters.
 
-        Note that we purposefully don't call the superclass' constructor since
-        it would require a filename of a .ulg to load. Instead we use tests to
-        ensure compatibility. This is the reason why the seemingly useless
-        disable_str_exceptions option is also included.
+        Furthermore, the "lazy" parameter specifies whether all data fields
+        should be read on-demand when get_dataset is called, or if they should
+        all be read and populated into data_list when the object is
+        instantiated.
+
+        The constructor also checks that SCHEMA_VERSION matches the "PRAGMA
+        user_version" found in the database, see the documentation of "PRAGMA
+        user_version" for more information.
         '''
+
+        with db_handle() as con:
+            cur = con.cursor()
+            cur.execute('PRAGMA user_version')
+            (db_version,) = cur.fetchone()
+            if db_version < DatabaseULog.SCHEMA_VERSION:
+                raise ValueError('Database version %d < schema version %d, migration needed.' % (
+                    db_version,
+                    DatabaseULog.SCHEMA_VERSION
+            ))
 
         if log_file is not None and primary_key is not None:
             raise ValueError('You cannot provide both primary_key and log_file.')
@@ -106,16 +122,18 @@ class DatabaseULog(ULog):
 
     @property
     def primary_key(self):
-        '''The primary of the key, pointing to the correct log row in the database.'''
+        '''The primary of the key, pointing to the correct "ULog" row in the database.'''
         return self._pk
 
     # pylint: disable=too-many-locals,too-many-branches
     def load(self, lazy=True):
         '''
-        Load all necessary data from the database, except for the data series
-        themselves: loading all data series would cost unnecessary resources.
-        The data series should instead be accessed individually using
-        get_dataset.
+        Load all necessary data from the database, possibly except for the data series
+        themselves, which can cost unnecessary resources.
+
+        If lazy=True, then the data series will be left unread, deferred until
+        get_dataset is called. If however lazy=False, then all data series will
+        be read at once.
         '''
         if not DatabaseULog.exists_in_db(self._db, self._pk):
             raise KeyError(f'No ULog in database with Id={self._pk}')
@@ -309,9 +327,12 @@ class DatabaseULog(ULog):
         '''
         Access a specific dataset and its data series from the database.
 
-        Note that the parameters name and multi_instance parameters are named
-        the same way as the original ULog file for compatibility.
-        TODO explanation lazy
+        The "lazy" argument specifies whether only dataset metadata should be
+        retrieved from the database, or if the data series arrays should be
+        retrieved too.
+
+        The optional "db_cursor" argument can be used to avoid re-opening the
+        database connection each time get_dataset is called.
         '''
         if db_cursor is None:
             db_context = self._db()
@@ -356,8 +377,8 @@ class DatabaseULog(ULog):
 
     def save(self):
         '''
-        Save the DatabaseULog to the database. Throws a KeyError if the ulog is
-        already saved to the database.
+        Save the DatabaseULog to the database. Throws a KeyError if the primary
+        key is already in the database.
         '''
         if self._pk is not None:
             raise KeyError('Cannot save logs that are already in the database')
