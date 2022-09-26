@@ -822,6 +822,9 @@ class ULog(object):
         self._last_timestamp = self._start_timestamp
         self._read_file_definitions()
 
+        if self._debug:
+            print("header end offset: {:}".format(self._file_handle.tell()))
+
         if self.has_data_appended and len(self._appended_offsets) > 0:
             if self._debug:
                 print('This file has data appended')
