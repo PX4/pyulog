@@ -90,8 +90,12 @@ def main():
         if len(ulog.msg_info_multiple_dict) > 0 and message in ulog.msg_info_multiple_dict:
             message_info_multiple = ulog.msg_info_multiple_dict[message]
             for i, m in enumerate(message_info_multiple):
-                print("# {} {}:".format(message, i))
-                print(separator.join(m))
+                if len(m) > 0 and isinstance(m[0], (bytes, bytearray)):
+                    print("# {} {} (len: {:}):".format(message, i, sum(len(item) for item in m)))
+                    print(separator.join(' '.join('{:02x}'.format(x) for x in item) for item in m))
+                else:
+                    print("# {} {}:".format(message, i))
+                    print(separator.join(m))
         else:
             print("message {} not found".format(message))
     else:
