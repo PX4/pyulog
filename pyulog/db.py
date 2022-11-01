@@ -32,7 +32,8 @@ class DatabaseULog(ULog):
     >
     > db_handle = DatabaseULog.get_db_handle('dbulog.sqlite3')
     > dbulog = DatabaseULog(db_handle, log_file='example.ulg') # Slow
-    > pk = dbulog.save()
+    > dbulog.save()
+    > pk = dbulog.primary_key()
     > # [...]
     > dbulog = DatabaseULog(db_handle, primary_key=pk) # Fast
 
