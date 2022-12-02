@@ -235,11 +235,16 @@ optional arguments:
 ```
 ### Migrate/setup the database for use with the DatabaseULog class (ulog_migratedb)
 
+> **Warning** This command must be run whenever the schema changes, otherwise DatabaseULog won't function.
+
+> **Warning** Even if you store logs in the database, you should keep the original .ulg files. Otherwise you may lose your data.
+
+
 Usage:
 ```
 usage: ulog_migratedb [-h] [-d DB_PATH] [-n] [-s SQL_DIR] [-f]
 
-Setup the database for DatabaseULog
+Setup the database for DatabaseULog.
 
 optional arguments:
   -h, --help            show this help message and exit
