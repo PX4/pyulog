@@ -106,3 +106,22 @@ class TestDatabaseULog(unittest.TestCase):
             # Increment SCHEMA_VERSION so the database is seemingly out of date
             with patch.object(DatabaseULog, 'SCHEMA_VERSION', DatabaseULog.SCHEMA_VERSION+1):
                 _ = DatabaseULog(self.db_handle, log_file=log_file)
+
+    @data('sample_log_small')
+    def test_sha256sum(self, test_case):
+        '''
+        Verify that the sha256sum set on save can be used to find the same file again.
+        '''
+
+        test_file = os.path.join(TEST_PATH, f'{test_case}.ulg')
+        dbulog = DatabaseULog(self.db_handle, log_file=test_file)
+        dbulog.save()
+        digest = DatabaseULog.calc_sha256sum(test_file)
+        self.assertEqual(digest, dbulog.sha256sum)
+
+        pk_from_digest = DatabaseULog.primary_key_from_sha256sum(self.db_handle, digest)
+        self.assertEqual(pk_from_digest, dbulog.primary_key)
+
+        dbulog_duplicate = DatabaseULog(self.db_handle, log_file=test_file)
+        with self.assertRaises(KeyError):
+            dbulog_duplicate.save()
