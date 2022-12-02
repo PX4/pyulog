@@ -125,3 +125,33 @@ class TestDatabaseULog(unittest.TestCase):
         dbulog_duplicate = DatabaseULog(self.db_handle, log_file=test_file)
         with self.assertRaises(KeyError):
             dbulog_duplicate.save()
+
+    def test_delete(self):
+        '''
+        Verify that the delete method completely deletes the relevant ulog from
+        the database, and nothing else, by looking at the size of the database
+        before and after deleting.
+        '''
+
+        def db_size():
+            '''
+            Get the size in bytes of the database file, after VACUUMING to make
+            sure that deleted rows are cleaned up.
+            '''
+            with self.db_handle() as con:
+                con.execute('VACUUM')
+            return os.path.getsize(self.db_path)
+
+        # We pre-populate the database with a log to detect if delete() just
+        # wipes everything
+        test_file1 = os.path.join(TEST_PATH, f'sample.ulg')
+        DatabaseULog(self.db_handle, log_file=test_file1).save()
+        initial_size = db_size()
+
+        test_file2 = os.path.join(TEST_PATH, f'sample_log_small.ulg')
+        dbulog = DatabaseULog(self.db_handle, log_file=test_file2)
+        dbulog.save()
+        self.assertNotEqual(db_size(), initial_size)
+
+        dbulog.delete()
+        self.assertEqual(db_size(), initial_size)
