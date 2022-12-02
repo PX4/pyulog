@@ -3,6 +3,7 @@ Module containing the DatabaseULog class.
 '''
 
 import sqlite3
+import hashlib
 import contextlib
 import numpy as np
 from pyulog import ULog
@@ -16,7 +17,10 @@ class DatabaseULog(ULog):
     The first time you see a ulog file, instantiate a DatabaseULog directly
     from a ulog file, and then call save() to write it to the database. Later
     it can be accessed by providing the primary_key, upon which this class
-    loads all needed fields from the database.
+    loads all needed fields from the database. If you don't have the
+    primary_key value available, but you have the .ulg file and know it is in
+    the database, you can retrieve the hash with DatabaseULog.calc_sha256sum
+    and DatabaseULog.primary_key_from_sha256sum.
 
     This class is currently designed to be write-once only, so you cannot
     update existing database entries. This could and should be changed in the
@@ -45,7 +49,7 @@ class DatabaseULog(ULog):
     contsructor will throw an exception. See the documentation of
     "ulog_migratedb" for more information.
     '''
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     @staticmethod
     def get_db_handle(db_path):
@@ -78,6 +82,49 @@ class DatabaseULog(ULog):
 
             return count == 1
 
+    @staticmethod
+    def primary_key_from_sha256sum(db_handle, sha256sum):
+        '''
+        Search the database for a row with the given SHA256 digest and returns
+        the corresponding primary key. Returns None if not found.
+        '''
+        primary_key = None
+        with db_handle() as con:
+            cur = con.cursor()
+            cur.execute('''
+                SELECT Id
+                FROM ULog
+                WHERE SHA256Sum = ?
+                ''', (sha256sum,))
+            row = cur.fetchone()
+            if row:
+                primary_key = row[0]
+            cur.close()
+        return primary_key
+
+    @staticmethod
+    def calc_sha256sum(log_file):
+        '''
+        Compute the SHA256 digest of a file, specified as a file or a valid file path.
+        '''
+        if log_file is None:
+            return None
+        if isinstance(log_file, str):
+            log_file = open(log_file, 'rb') # pylint: disable=consider-using-with
+            log_context = log_file
+        else:
+            log_context = contextlib.nullcontext()
+
+        file_hash = hashlib.sha256()
+        with log_context:
+            while True:
+                block = log_file.read(4096)
+                file_hash.update(block)
+                if block == b'':
+                    break
+        return file_hash.hexdigest()
+
+
     def __init__(self, db_handle, primary_key=None, log_file=None, lazy=True, **kwargs):
         '''
         You always need the database handle (which can be generated with
@@ -86,7 +133,9 @@ class DatabaseULog(ULog):
         - For storing a new log in the database, supply the corresponding
           log_file parameter, but leave the primary_key field at None.
         - For reading an existing log from the database, supply the desired
-          primary_key parameter, but leave the log_file parameter at None.
+          primary_key parameter, but leave the log_file parameter at None. If
+          you don't know the primary_key, you can try finding it with
+          DatabaseULog.primary_key_from_sha256sum.
         You cannot supply both of these parameters.
 
         Furthermore, the "lazy" parameter specifies whether all data fields
@@ -114,8 +163,11 @@ class DatabaseULog(ULog):
         if log_file is None and primary_key is None:
             raise ValueError('You must provide either a primary_key or log_file.')
 
+
         self._pk = primary_key
         self._db = db_handle
+        if log_file is not None:
+            self._sha256sum = DatabaseULog.calc_sha256sum(log_file)
 
         super().__init__(log_file, **kwargs)
         if primary_key is not None:
@@ -123,8 +175,13 @@ class DatabaseULog(ULog):
 
     @property
     def primary_key(self):
-        '''The primary of the key, pointing to the correct "ULog" row in the database.'''
+        '''The primary key of the ulog, pointing to the correct "ULog" row in the database.'''
         return self._pk
+
+    @property
+    def sha256sum(self):
+        '''The computed SHA256 digest of the file, stored for later use.'''
+        return self._sha256sum
 
     # pylint: disable=too-many-locals,too-many-branches
     def load(self, lazy=True):
@@ -150,7 +207,8 @@ class DatabaseULog(ULog):
                        CompatFlags,
                        IncompatFlags,
                        SyncCount,
-                       HasSync
+                       HasSync,
+                       SHA256Sum
                 FROM ULog
                 WHERE Id = ?
                 ''', (self._pk,))
@@ -162,6 +220,7 @@ class DatabaseULog(ULog):
             self._incompat_flags = [ord(c) for c in ulog_result[4]]
             self._sync_seq_cnt = ulog_result[5]
             self._has_sync = ulog_result[6]
+            self._sha256sum = ulog_result[7]
 
             # appended_offsets
             cur.execute('''
@@ -384,15 +443,20 @@ class DatabaseULog(ULog):
         if self._pk is not None:
             raise KeyError('Cannot save logs that are already in the database')
 
+        pk_from_hash = DatabaseULog.primary_key_from_sha256sum(self._db, self._sha256sum)
+        if pk_from_hash is not None:
+            self._pk = pk_from_hash
+            raise KeyError(f'Hash {self._sha256sum} already in database with Id={pk_from_hash}')
+
         with self._db() as con:
             cur = con.cursor()
 
             # ULog metadata
             cur.execute('''
                 INSERT INTO ULog
-                (FileVersion, StartTimestamp, LastTimestamp, CompatFlags, IncompatFlags, SyncCount, HasSync)
+                (FileVersion, StartTimestamp, LastTimestamp, CompatFlags, IncompatFlags, SyncCount, HasSync, SHA256Sum)
                 VALUES
-                (?, ?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                     self._file_version,
                     self._start_timestamp,
@@ -401,6 +465,7 @@ class DatabaseULog(ULog):
                     ''.join([chr(n) for n in self._incompat_flags]),
                     self._sync_seq_cnt,
                     self._has_sync,
+                    self._sha256sum,
                 )
             )
             self._pk = cur.lastrowid
