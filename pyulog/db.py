@@ -23,8 +23,8 @@ class DatabaseULog(ULog):
     and DatabaseULog.primary_key_from_sha256sum.
 
     This class is currently designed to be write-once only, so you cannot
-    update existing database entries. This could and should be changed in the
-    future.
+    update existing database entries. To do so, first call delete() and then
+    save() again.
 
     A weakness of the implementation is that there are some silently failing
     states if you don't call save() immediately after instantiating from a ULog
@@ -57,10 +57,14 @@ class DatabaseULog(ULog):
         Generate a database handle that can be used in subsequent database access.
         '''
         def db_handle():
-            return sqlite3.connect(
+            con = sqlite3.connect(
                 db_path,
                 detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
             )
+            # The next line is necessary for sqlite3 to actually respect
+            # FOREIGN KEY constraints and ON DELETE CASCADE.
+            con.execute('PRAGMA foreign_keys=on')
+            return con
         return db_handle
 
     @staticmethod
@@ -649,6 +653,23 @@ class DatabaseULog(ULog):
                 ) for timestamp, key, value in self.changed_parameters])
 
             cur.close()
+
+    def delete(self):
+        '''
+        Deletes the ULog row and cascading rows from the database.
+        '''
+        if self._pk is None:
+            raise KeyError('Cannot delete logs that are not in the database')
+
+        with self._db() as con:
+            cur = con.cursor()
+            cur.execute('''
+                DELETE FROM ULog
+                WHERE Id = ?
+            ''', (self._pk,)
+            )
+            cur.close()
+        self._pk = None
 
     class DatabaseData(ULog.Data):
         '''

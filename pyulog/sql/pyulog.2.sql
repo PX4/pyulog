@@ -172,4 +172,3 @@ ALTER TABLE ULogDefaultParameter_tmp RENAME TO ULogDefaultParameter;
 
 PRAGMA foreign_keys=on;
 COMMIT;
-VACUUM;
