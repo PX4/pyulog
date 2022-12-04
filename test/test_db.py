@@ -5,6 +5,7 @@ Test the DatabaseULog module.
 import unittest
 import os
 from unittest.mock import patch
+import numpy as np
 from ddt import ddt, data
 
 from pyulog import ULog
@@ -155,3 +156,48 @@ class TestDatabaseULog(unittest.TestCase):
 
         dbulog.delete()
         self.assertEqual(db_size(), initial_size)
+
+    def test_json(self):
+        '''
+        Verify that the storage of JSON rows allows for reproduction of the
+        datasets.
+        '''
+        test_file = os.path.join(TEST_PATH, 'sample_log_small.ulg')
+        log_path = os.path.join(TEST_PATH, test_file)
+
+        dbulog = DatabaseULog(self.db_handle, log_file=log_path)
+        dbulog.save(append_json=True)
+
+        with self.db_handle() as con:
+            cur = con.cursor()
+            for dataset in dbulog.data_list:
+                for field_name, values in dataset.data.items():
+                    cur.execute('''
+                        SELECT j.key, j.value
+                        FROM ULogField uf, json_each(uf.ValueJson) j
+                            JOIN ULogDataset uds ON uf.DatasetId = uds.Id
+                        WHERE uds.DatasetName = ?
+                            AND uds.MultiId = ?
+                            AND uf.TopicName = ?
+                            AND uds.ULogId = ?
+                        ORDER BY j.key ASC
+                    ''', (dataset.name, dataset.multi_id, field_name, dbulog.primary_key))
+                    results = np.array(cur.fetchall(), dtype=float)
+                    db_timestamps = results[:,0].flatten()
+                    db_values = results[:,1].flatten()
+
+                    # We must filter out None, nan and inf values since JSON
+                    # doesn't support nan and inf.
+                    db_values_finite = db_values[np.isfinite(db_values)]
+                    values_finite = values[np.isfinite(values)]
+
+                    # We test for approximate equality since we are comparing
+                    # string-formatted floats.
+                    self.assertEqual(len(db_values_finite), len(values_finite))
+                    if len(db_values_finite) > 0:
+                        np.testing.assert_allclose(db_values_finite, values_finite)
+
+                    if field_name == 'timestamp':
+                        self.assertEqual(len(db_timestamps), len(values))
+                        np.testing.assert_allclose(db_timestamps, values)
+            cur.close()

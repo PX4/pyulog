@@ -49,7 +49,7 @@ class DatabaseULog(ULog):
     contsructor will throw an exception. See the documentation of
     "ulog_migratedb" for more information.
     '''
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 3
 
     @staticmethod
     def get_db_handle(db_path):
@@ -196,6 +196,9 @@ class DatabaseULog(ULog):
         If lazy=True, then the data series will be left unread, deferred until
         get_dataset is called. If however lazy=False, then all data series will
         be read at once.
+
+        Even if the log was originally saved with append_json=True, this
+        function will always use the faster BLOB column for retrieval.
         '''
         if not DatabaseULog.exists_in_db(self._db, self._pk):
             raise KeyError(f'No ULog in database with Id={self._pk}')
@@ -439,11 +442,17 @@ class DatabaseULog(ULog):
             )
         return dataset
 
-    def save(self):
+    def save(self, append_json=False):
         '''
         Save the DatabaseULog to the database. Throws a KeyError if the primary
         key is already in the database.
+
+        The datasets are stored in a sqlite BLOB for fast retrieval, but if
+        append_json=True, then datasets are additionally stored in a JSON
+        field. This allows them to be directly queried using the sqlite
+        function json_each, but increases the writing time and database size.
         '''
+
         if self._pk is not None:
             raise KeyError('Cannot save logs that are already in the database')
 
@@ -503,15 +512,34 @@ class DatabaseULog(ULog):
                 )
                 dataset_id = cur.lastrowid
                 for field in dataset.field_data:
-                    cur.execute('''
+                    values = dataset.data[field.field_name]
+                    values_bytes = values.tobytes()
+                    if append_json:
+                        # Precision is only good enough up to a few decimals,
+                        # depending on the default float formatter. The
+                        # function np.array2string was tested, but was slower.
+                        # Also note that doing the slow json.dumps is also
+                        # unnecessary since we know that the object to be
+                        # formatted is an array.
+                        timestamp_list = [str(s) for s in dataset.data['timestamp'].tolist()]
+                        values_json = str(
+                            dict(zip(timestamp_list, values.tolist()))
+                        ).replace('nan', 'null').replace('inf', 'null').replace("'", '"')
+                        json_placeholder = 'json(?)'  # Saves some space
+                    else:
+                        values_json = None
+                        json_placeholder = '?'
+
+                    cur.execute(f'''
                         INSERT INTO ULogField
-                        (TopicName, DataType, ValueArray, DatasetId)
+                        (TopicName, DataType, ValueArray, ValueJson, DatasetId)
                         VALUES
-                        (?, ?, ?, ?)
+                        (?, ?, ?, {json_placeholder}, ?)
                         ''', (
                             field.field_name,
                             field.type_str,
-                            dataset.data[field.field_name].tobytes(),
+                            values_bytes,
+                            values_json,
                             dataset_id,
                         )
                     )
