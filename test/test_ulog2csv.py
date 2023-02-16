@@ -46,7 +46,8 @@ class Test(unittest.TestCase):
         messages = []
         output=tmpdir
         delimiter=','
-        ulog2csv.convert_ulog2csv(ulog_file_name, messages, output, delimiter)
+        timestamp = 0
+        ulog2csv.convert_ulog2csv(ulog_file_name, messages, output, delimiter, timestamp)
 
     @data('sample', 'sample_appended', 'sample_appended_multiple')
     def test_pyulog_info_cli(self, test_case):
