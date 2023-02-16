@@ -32,10 +32,10 @@ def main():
                         help='Output directory (default is same as input file)',
                         metavar='DIR')
     parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
-                        help='Ignore string parsing exceptions', default=False)                  
+                        help='Ignore string parsing exceptions', default=False)               
     parser.add_argument(
-        '-t', '--timestamp_start', dest='timestamp_start', type = int, 
-        help=("Only convert data after this timestamp(in seconds)"))
+        '-t', '--time_s', dest='time_s', type = int, 
+        help="Only convert data after this timestamp(in seconds)")
     
     args = parser.parse_args()
 
@@ -43,10 +43,10 @@ def main():
         print('Creating output directory {:}'.format(args.output))
         os.mkdir(args.output)
 
-    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.timestamp_start, args.ignore)
+    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.time_s, args.ignore)
 
 
-def convert_ulog2csv(ulog_file_name, messages, output, delimiter, timestamp_start, disable_str_exceptions=False):
+def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, disable_str_exceptions=False):
     """
     Coverts and ULog file to a CSV file.
 
@@ -54,7 +54,7 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, timestamp_star
     :param messages: A list of message names
     :param output: Output file path
     :param delimiter: CSV delimiter
-    :param timestamp_start: Offset time for conversion(seconds)
+    :param time_s: Offset time for conversion(seconds)
 
     :return: None
     """
@@ -92,10 +92,10 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, timestamp_star
             # write the header
             csvfile.write(delimiter.join(data_keys) + '\n')
             #get the index for row where timestamp exceeds or equals the required value
-            timestamp_start_index = np.where(d.data['timestamp'] >= timestamp_start * 1e6)[0][0] if timestamp_start else 0
+            time_index = np.where(d.data['timestamp'] >= time_s * 1e6)[0][0] if time_s else 0
             # write the data
             last_elem = len(data_keys)-1
-            for i in range(timestamp_start_index, len(d.data['timestamp'])):
+            for i in range(time_index, len(d.data['timestamp'])):
                 for k in range(len(data_keys)):
                     csvfile.write(str(d.data[data_keys[k]][i]))
                     if k != last_elem:
