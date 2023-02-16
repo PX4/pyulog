@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import numpy as np
 
 from .core import ULog
 
@@ -31,18 +32,21 @@ def main():
                         help='Output directory (default is same as input file)',
                         metavar='DIR')
     parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
-                        help='Ignore string parsing exceptions', default=False)
-
+                        help='Ignore string parsing exceptions', default=False)                  
+    parser.add_argument(
+        '-t', '--timestamp_start', dest='timestamp_start', type = int, 
+        help=("Only convert data after this timestamp(in seconds)"))
+    
     args = parser.parse_args()
 
     if args.output and not os.path.isdir(args.output):
         print('Creating output directory {:}'.format(args.output))
         os.mkdir(args.output)
 
-    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.ignore)
+    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.timestamp_start, args.ignore)
 
 
-def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_exceptions=False):
+def convert_ulog2csv(ulog_file_name, messages, output, delimiter, timestamp_start, disable_str_exceptions=False):
     """
     Coverts and ULog file to a CSV file.
 
@@ -50,6 +54,7 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_ex
     :param messages: A list of message names
     :param output: Output file path
     :param delimiter: CSV delimiter
+    :param timestamp_start: Offset time for conversion(seconds)
 
     :return: None
     """
@@ -78,21 +83,23 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, disable_str_ex
 
             # use same field order as in the log, except for the timestamp
             data_keys = [f.field_name for f in d.field_data]
-            data_keys.remove('timestamp')
-            data_keys.insert(0, 'timestamp')  # we want timestamp at first position
-
+            data_keys.remove('timestamp')   
+            data_keys.insert(0, 'timestamp')  # we want timestamp at first positio
             # we don't use np.savetxt, because we have multiple arrays with
             # potentially different data types. However the following is quite
             # slow...
 
             # write the header
             csvfile.write(delimiter.join(data_keys) + '\n')
-
+            #get the index for row where timestamp exceeds or equals the required value
+            timestamp_start_index = np.where(d.data['timestamp'] >= timestamp_start * 1e6)[0][0] if timestamp_start else 0
             # write the data
             last_elem = len(data_keys)-1
-            for i in range(len(d.data['timestamp'])):
+            for i in range(timestamp_start_index, len(d.data['timestamp'])):
                 for k in range(len(data_keys)):
                     csvfile.write(str(d.data[data_keys[k]][i]))
                     if k != last_elem:
                         csvfile.write(delimiter)
                 csvfile.write('\n')
+                
+main()
