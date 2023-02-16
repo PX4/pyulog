@@ -102,4 +102,3 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, timestamp_star
                         csvfile.write(delimiter)
                 csvfile.write('\n')
                 
-main()
