@@ -35,7 +35,7 @@ def main():
                         help='Ignore string parsing exceptions', default=False)               
     parser.add_argument(
         '-t', '--time_s', dest='time_s', type = int, 
-        help="Only convert data after this timestamp(in seconds)")
+        help="Only convert data after this timestamp (in seconds)")
     
     args = parser.parse_args()
 
