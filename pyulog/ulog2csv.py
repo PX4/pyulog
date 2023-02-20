@@ -37,7 +37,7 @@ def main():
     parser.add_argument(
         '-t', '--time_s', dest='time_s', type = int, 
         help="Only convert data after this timestamp (in seconds)")
-    
+
     args = parser.parse_args()
 
     if args.output and not os.path.isdir(args.output):
@@ -103,4 +103,4 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, disabl
                     if k != last_elem:
                         csvfile.write(delimiter)
                 csvfile.write('\n')
-                
+
