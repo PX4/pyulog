@@ -83,8 +83,9 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, disabl
 
             # use same field order as in the log, except for the timestamp
             data_keys = [f.field_name for f in d.field_data]
-            data_keys.remove('timestamp')   
-            data_keys.insert(0, 'timestamp')  # we want timestamp at first positio
+            data_keys.remove('timestamp')
+            data_keys.insert(0, 'timestamp')  # we want timestamp at first position
+            
             # we don't use np.savetxt, because we have multiple arrays with
             # potentially different data types. However the following is quite
             # slow...
