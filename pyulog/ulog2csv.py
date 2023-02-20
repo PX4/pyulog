@@ -32,7 +32,8 @@ def main():
                         help='Output directory (default is same as input file)',
                         metavar='DIR')
     parser.add_argument('-i', '--ignore', dest='ignore', action='store_true',
-                        help='Ignore string parsing exceptions', default=False)               
+                        help='Ignore string parsing exceptions', default=False)
+
     parser.add_argument(
         '-t', '--time_s', dest='time_s', type = int, 
         help="Only convert data after this timestamp (in seconds)")
