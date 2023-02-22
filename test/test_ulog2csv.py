@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
         output=tmpdir
         delimiter=','
         time_s = 0
-        time_e = 1
+        time_e = 0
         ulog2csv.convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e)
 
     @data('sample', 'sample_appended', 'sample_appended_multiple')
