@@ -35,7 +35,7 @@ def main():
                         help='Ignore string parsing exceptions', default=False)
 
     parser.add_argument(
-        '-ts', '--time_s', dest='time_s', type = int, 
+        '-ts', '--time_s', dest='time_s', type = int,
         help="Only convert data after this timestamp (in seconds)")
 
     parser.add_argument(
@@ -48,10 +48,12 @@ def main():
         print('Creating output directory {:}'.format(args.output))
         os.mkdir(args.output)
 
-    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter, args.time_s, args.time_e, args.ignore)
+    convert_ulog2csv(args.filename, args.messages, args.output, args.delimiter,
+                     args.time_s, args.time_e, args.ignore)
 
 
-def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e, disable_str_exceptions=False):
+def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e,
+                     disable_str_exceptions=False):
     """
     Coverts and ULog file to a CSV file.
 
@@ -60,7 +62,7 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e
     :param output: Output file path
     :param delimiter: CSV delimiter
     :param time_s: Offset time for conversion in seconds
-    :param time_e: Limit until time for conversion in seconds  
+    :param time_e: Limit until time for conversion in seconds
 
     :return: None
     """
@@ -100,9 +102,11 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e
             csvfile.write(delimiter.join(data_keys) + '\n')
 
             #get the index for row where timestamp exceeds or equals the required value
-            time_s_i = np.where(d.data['timestamp'] >= time_s * 1e6)[0][0] if time_s else 0
+            time_s_i = np.where(d.data['timestamp'] >= time_s * 1e6)[0][0] \
+                    if time_s else 0
             #get the index for row upto the timestamp of the required value
-            time_e_i = np.where(d.data['timestamp'] >= time_e * 1e6)[0][0] if time_e else len(d.data['timestamp'])
+            time_e_i = np.where(d.data['timestamp'] >= time_e * 1e6)[0][0] \
+                    if time_e else len(d.data['timestamp'])
 
             # write the data
             last_elem = len(data_keys)-1

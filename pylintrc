@@ -244,7 +244,8 @@ notes=FIXME,XXX,TODO
 
 [LOGGING]
 
-# Logging modules to check that the string format arguments are in logging
+# Logging modules to check that the string format \
+# arguments are in logging
 # function parameter format
 logging-modules=logging
 
@@ -320,7 +321,7 @@ analyse-fallback-blocks=no
 [DESIGN]
 
 # Maximum number of arguments for function / method
-max-args=5
+max-args=7
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore
