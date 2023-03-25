@@ -17,7 +17,7 @@ def get_defaults(ulog, default):
 
     if default == 'system': return ulog.get_default_parameters(0)
     if default == 'current_setup': return ulog.get_default_parameters(1)
-    raise Exception('invalid value \'{}\' for --default'.format(default))
+    raise ValueError('invalid value \'{}\' for --default'.format(default))
 
 def main():
     """Commande line interface"""

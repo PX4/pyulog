@@ -259,7 +259,7 @@ class ULog(object):
         header_data.extend(struct.pack('B', self._file_version))
         header_data.extend(struct.pack('<Q', self._start_timestamp))
         if len(header_data) != 16:
-            raise Exception("Written header is too short")
+            raise TypeError("Written header is too short")
 
         file.write(header_data)
 
@@ -335,7 +335,7 @@ class ULog(object):
         elif isinstance(value, float):
             value_type = "float"
         else:
-            raise Exception("Found unknown parameter value type")
+            raise TypeError("Found unknown parameter value type")
 
         key: str = value_type + ' ' + name
 
@@ -841,9 +841,9 @@ class ULog(object):
     def _read_file_header(self):
         header_data = self._file_handle.read(16)
         if len(header_data) != 16:
-            raise Exception("Invalid file format (Header too short)")
+            raise TypeError("Invalid file format (Header too short)")
         if header_data[:7] != self.HEADER_BYTES:
-            raise Exception("Invalid file format (Failed to parse header)")
+            raise TypeError("Invalid file format (Failed to parse header)")
         self._file_version, = struct.unpack('B', header_data[7:8])
         if self._file_version > 1:
             print("Warning: unknown file version. Will attempt to read it anyway")
@@ -898,10 +898,10 @@ class ULog(object):
                     unknown_incompat_flag_msg = \
                     "Unknown incompatible flag set: cannot parse the log"
                     if self._incompat_flags[0] & ~1:
-                        raise Exception(unknown_incompat_flag_msg)
+                        raise ValueError(unknown_incompat_flag_msg)
                     for i in range(1, 8):
                         if self._incompat_flags[i]:
-                            raise Exception(unknown_incompat_flag_msg)
+                            raise NotImplementedError(unknown_incompat_flag_msg)
 
                 else:
                     if self._debug:

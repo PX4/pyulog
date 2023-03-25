@@ -160,7 +160,7 @@ def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
     cur_dataset = [elem for elem in data
                    if elem.name == position_topic_name and elem.multi_id == topic_instance]
     if len(cur_dataset) == 0:
-        raise Exception(position_topic_name+' not found in data')
+        raise KeyError(position_topic_name+' not found in data')
 
     cur_dataset = cur_dataset[0]
 
