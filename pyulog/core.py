@@ -354,6 +354,8 @@ class ULog(object):
         if value_type.startswith('char['):
             value_bytes = bytes(value, 'utf-8')
             data.extend(value_bytes)
+        elif value_type.startswith('uint8_t['):
+            data.extend(value)
         else:
             code = self._UNPACK_TYPES[value_type][0]
             data.extend(struct.pack('<' + code, value))
