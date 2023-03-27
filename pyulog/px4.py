@@ -65,17 +65,26 @@ class PX4ULog(object):
                 3: 'Q'}.get(mc_est_group, 'unknown ({})'.format(mc_est_group))
 
 
-    def add_roll_pitch_yaw(self):
+    def add_roll_pitch_yaw(self, messages=None):
         """ convenience method to add the fields 'roll', 'pitch', 'yaw' to the
         loaded data using the quaternion fields (does not update field_data).
 
-        Messages are: 'vehicle_attitude.q' and 'vehicle_attitude_setpoint.q_d',
-        'vehicle_attitude_groundtruth.q' and 'vehicle_vision_attitude.q' """
+        By default, messages are: 'vehicle_attitude.q',
+        'vehicle_attitude_setpoint.q_d', 'vehicle_attitude_groundtruth.q' and
+        'vehicle_vision_attitude.q' """
 
-        self._add_roll_pitch_yaw_to_message('vehicle_attitude')
-        self._add_roll_pitch_yaw_to_message('vehicle_vision_attitude')
-        self._add_roll_pitch_yaw_to_message('vehicle_attitude_groundtruth')
-        self._add_roll_pitch_yaw_to_message('vehicle_attitude_setpoint', '_d')
+        if messages is None:
+            messages = ['vehicle_attitude',
+                        'vehicle_vision_attitude',
+                        'vehicle_attitude_groundtruth',
+                        'vehicle_attitude_setpoint:_d']
+        for message in messages:
+            if message.endswith(':_d'):
+                suffix = '_d'
+                message = message[:-3]
+            else:
+                suffix = ''
+            self._add_roll_pitch_yaw_to_message(message, suffix)
 
 
     def _add_roll_pitch_yaw_to_message(self, message_name, field_name_suffix=''):
