@@ -84,7 +84,7 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e
 
     for d in data:
         fmt = '{0}_{1}_{2}.csv'
-        output_file_name = fmt.format(output_file_prefix, d.name, d.multi_id)
+        output_file_name = fmt.format(output_file_prefix, d.name.replace('/', '_'), d.multi_id)
         fmt = 'Writing {0} ({1} data points)'
         # print(fmt.format(output_file_name, len(d.data['timestamp'])))
         with open(output_file_name, 'w', encoding='utf-8') as csvfile:
