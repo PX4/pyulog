@@ -91,3 +91,6 @@ def main():
                         file_handle = from_dev_file
                     for k in range(msg_len):
                         file_handle.write(gps_dump_data.data['data['+str(k)+']'][i])
+
+if __name__ == "__main__":
+    main()
