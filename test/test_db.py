@@ -145,11 +145,11 @@ class TestDatabaseULog(unittest.TestCase):
 
         # We pre-populate the database with a log to detect if delete() just
         # wipes everything
-        test_file1 = os.path.join(TEST_PATH, f'sample.ulg')
+        test_file1 = os.path.join(TEST_PATH, 'sample.ulg')
         DatabaseULog(self.db_handle, log_file=test_file1).save()
         initial_size = db_size()
 
-        test_file2 = os.path.join(TEST_PATH, f'sample_log_small.ulg')
+        test_file2 = os.path.join(TEST_PATH, 'sample_log_small.ulg')
         dbulog = DatabaseULog(self.db_handle, log_file=test_file2)
         dbulog.save()
         self.assertNotEqual(db_size(), initial_size)
