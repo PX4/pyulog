@@ -21,7 +21,7 @@ TEST_PATH = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
 
 @ddt
-class Test(unittest.TestCase):
+class TestCommandLineTools(unittest.TestCase):
     """
     Test command line tools.
     """
