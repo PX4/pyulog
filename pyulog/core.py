@@ -270,7 +270,7 @@ class ULog(object):
         # When writing the log back to a .ulg file, don't mark data as appended
         imcompat_flags = copy.deepcopy(self._incompat_flags)
         imcompat_flags[0] = imcompat_flags[0] & 0xFE
-        data.extend(struct.pack('<' + 'B' * 8, *self._incompat_flags))
+        data.extend(struct.pack('<' + 'B' * 8, *imcompat_flags))
 
         offsets = [0, 0, 0]
         data.extend(struct.pack('<' + 'Q' * 3, *offsets))
