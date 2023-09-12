@@ -1,10 +1,17 @@
+'''
+Test command line tools
+'''
+
+import sys
 import os
 import inspect
 import unittest
-from pyulog import ulog2csv, info, params, messages, extract_gps_dump
-import sys
 import tempfile
+
 from ddt import ddt, data
+
+from pyulog import ulog2csv, info, params, messages, extract_gps_dump
+
 try:
     from StringIO import StringIO
 except ImportError:
@@ -15,13 +22,16 @@ TEST_PATH = os.path.dirname(os.path.abspath(
 
 @ddt
 class Test(unittest.TestCase):
+    """
+    Test command line tools.
+    """
 
     def run_against_file(self, expected_output_file, test):
         """
         run a test and compare the output against an expected file
         """
         saved_stdout = sys.stdout
-        with open(expected_output_file, 'r') as file_handle:
+        with open(expected_output_file, 'r', encoding='utf8') as file_handle:
             expected_output = file_handle.read().strip()
             output = None
             try:
@@ -40,18 +50,30 @@ class Test(unittest.TestCase):
 
     @data('sample')
     def test_ulog2csv(self, test_case):
+        """
+        Test that 'ulog2csv' runs without error.
+        """
+
         tmpdir = tempfile.gettempdir()
         print('writing files to ', tmpdir)
         ulog_file_name = os.path.join(TEST_PATH, test_case+'.ulg')
-        messages = []
+        included_messages = []
         output=tmpdir
         delimiter=','
         time_s = 0
         time_e = 0
-        ulog2csv.convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e)
+        ulog2csv.convert_ulog2csv(ulog_file_name,
+                                  included_messages,
+                                  output,
+                                  delimiter,
+                                  time_s,
+                                  time_e)
 
     @data('sample', 'sample_appended', 'sample_appended_multiple')
     def test_pyulog_info_cli(self, test_case):
+        """
+        Test that the output of 'ulog_info' on sample logs match previously generated results.
+        """
         sys.argv = [
             '',
             os.path.join(TEST_PATH, test_case+'.ulg'),
@@ -62,6 +84,10 @@ class Test(unittest.TestCase):
 
     @unittest.skip("no gps data in log file")
     def test_extract_gps_dump_cli(self):
+        """
+        Test that the output of 'ulog_extract_gps_dump' on sample logs match previously generated
+        results.
+        """
         sys.argv = [
             '',
             os.path.join(TEST_PATH, 'sample.ulg')
@@ -70,6 +96,9 @@ class Test(unittest.TestCase):
 
     @data('sample', 'sample_appended')
     def test_messages_cli(self, test_case):
+        """
+        Test that the output of 'ulog_messages' on sample logs match previously generated results.
+        """
         sys.argv = [
             '',
             os.path.join(TEST_PATH, test_case+'.ulg')
@@ -79,6 +108,9 @@ class Test(unittest.TestCase):
 
     @data('sample', 'sample_appended')
     def test_params_cli(self, test_case):
+        """
+        Test that 'ulog_params' runs without error.
+        """
         sys.argv = [
             '',
             os.path.join(TEST_PATH, test_case+'.ulg')
@@ -86,4 +118,4 @@ class Test(unittest.TestCase):
         params.main()
 
 
-# vim: set et fenc=utf-8 ft=python ff=unix sts=4 sw=4 ts=4 : 
+# vim: set et fenc=utf-8 ft=python ff=unix sts=4 sw=4 ts=4
