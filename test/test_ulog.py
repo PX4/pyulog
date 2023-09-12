@@ -36,46 +36,21 @@ class TestULog(unittest.TestCase):
             original.write_ulog(written_ulog_file_name)
             copied = pyulog.ULog(written_ulog_file_name)
 
-        # Check first and last timestamps
-        assert original.start_timestamp == copied.start_timestamp
-        assert original.last_timestamp == copied.last_timestamp
-
-        # Check flag bitset message 'B'
-        assert original._compat_flags == copied._compat_flags # pylint: disable=protected-access
-        if original.has_data_appended:
-            # Data is not appended when using write_ulog(). Add the flag manually.
-            copied._incompat_flags[0] = copied._incompat_flags[0] | 0x01 # pylint: disable=protected-access
-        assert original._incompat_flags == copied._incompat_flags # pylint: disable=protected-access
-
-        # Check format definitions 'F'
-        assert original.message_formats == copied.message_formats
-
-        # Check information messages 'I'
-        assert original.msg_info_dict == copied.msg_info_dict
-
-        # Check information message multi 'M'
-        assert original.msg_info_multiple_dict == copied.msg_info_multiple_dict
-
-        # Check initial parameters 'P'
-        assert original.initial_parameters == copied.initial_parameters
-
-        # Check default parameters 'Q'
-        assert original.has_default_parameters == copied.has_default_parameters # pylint: disable=protected-access
-        assert original._default_parameters == copied._default_parameters # pylint: disable=protected-access
-
-        # Check data 'A'/'D'
-        assert original.data_list == copied.data_list
-
-        # Check logged string messages 'L'
-        assert original.logged_messages == copied.logged_messages
-
-        # Check tagged logged string message 'C'
-        assert original.logged_messages_tagged == copied.logged_messages_tagged
-
-        # Check dropouts 'O'
-        assert original.dropouts == copied.dropouts
-
-        # Check changed parameters 'P'
-        assert original.changed_parameters == copied.changed_parameters
+        for original_key, original_value in original.__dict__.items():
+            copied_value = getattr(copied, original_key)
+            if original_key == '_sync_seq_cnt':
+                # Sync messages are counted on parse, but otherwise dropped, so
+                # we don't rewrite them
+                assert copied_value == 0
+            elif original_key == '_appended_offsets':
+                # Abruptly ended messages just before offsets are dropped, so
+                # we don't rewrite appended offsets
+                assert copied_value == []
+            elif original_key == '_incompat_flags':
+                # Same reasoning on incompat_flags[0] as for '_appended_offsets'
+                assert copied_value[0] == original_value[0] & 0xFE # pylint: disable=unsubscriptable-object
+                assert copied_value[1:] == original_value[1:] # pylint: disable=unsubscriptable-object
+            else:
+                assert copied_value == original_value
 
 # vim: set et fenc=utf-8 ft=python ff=unix sts=4 sw=4 ts=4
