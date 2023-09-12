@@ -1,4 +1,4 @@
 #! /bin/bash
 
-pytest test && pylint pyulog/*.py
+pytest test && pylint pyulog/*.py test/*.py
 
