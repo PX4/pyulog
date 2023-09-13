@@ -50,7 +50,7 @@ setup(
     license='BSD 3-Clause',
     classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
     platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
-    install_requires=['numpy'],
+    install_requires=['numpy < 1.25'], # numpy >= 1.25 requires python 3.9
     tests_require=['pytest', 'ddt'],
     entry_points = {
         'console_scripts': [
