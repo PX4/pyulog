@@ -390,7 +390,7 @@ class DatabaseULog(ULog):
 
             cur.close()
 
-    def get_dataset(self, name, multi_instance=0, lazy=False, db_cursor=None):
+    def get_dataset(self, name, multi_instance=0, lazy=False, db_cursor=None, legacy=False):
         '''
         Access a specific dataset and its data series from the database.
 
@@ -401,6 +401,10 @@ class DatabaseULog(ULog):
         The optional "db_cursor" argument can be used to avoid re-opening the
         database connection each time get_dataset is called.
         '''
+        if legacy:
+            [dataset] = [elem for elem in self.data_list if elem.name == name and elem.multi_id == multi_instance]
+            return dataset
+
         if db_cursor is None:
             db_context = self._db()
             cur = db_context.cursor()
