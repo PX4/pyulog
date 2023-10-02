@@ -253,7 +253,8 @@ class DatabaseULog(ULog):
                 dataset = self.get_dataset(dataset_name,
                                            multi_instance=multi_id,
                                            lazy=lazy,
-                                           db_cursor=cur)
+                                           db_cursor=cur,
+                                           caching=False)
                 self._data_list.append(dataset)
 
             # dropouts
@@ -390,7 +391,7 @@ class DatabaseULog(ULog):
 
             cur.close()
 
-    def get_dataset(self, name, multi_instance=0, lazy=False, db_cursor=None):
+    def get_dataset(self, name, multi_instance=0, lazy=False, db_cursor=None, caching=True):
         '''
         Access a specific dataset and its data series from the database.
 
@@ -400,13 +401,30 @@ class DatabaseULog(ULog):
 
         The optional "db_cursor" argument can be used to avoid re-opening the
         database connection each time get_dataset is called.
+
+        Since we don't expect the data to change often, we will normally use
+        self._data_list as a cache, and check there before reading from the
+        database. However, if caching=False, then we will always read anew
+        from the database.
         '''
+
         if db_cursor is None:
             db_context = self._db()
             cur = db_context.cursor()
         else:
             db_context = contextlib.nullcontext()
             cur = db_cursor
+
+        existing_dataset = None
+        for dataset in self._data_list:
+            if dataset.name == name and dataset.multi_id == multi_instance:
+                existing_dataset = dataset
+                break
+
+        if (caching
+                and existing_dataset is not None
+                and (lazy or existing_dataset.data)):
+            return existing_dataset
 
         with db_context:
             cur.execute('''
@@ -432,6 +450,16 @@ class DatabaseULog(ULog):
                     dtype = DatabaseULog._UNPACK_TYPES[data_type][2]
                     data[field_name] = np.frombuffer(value_bytes, dtype=dtype)
 
+        # If caching=True but there is no existing dataset we could append a
+        # new one to self._data_list, but that could be considered a
+        # non-obvious side effect.
+        if caching and existing_dataset is not None:
+            existing_dataset.msg_id = msg_id
+            existing_dataset.timestamp_idx = timestamp_idx
+            existing_dataset.field_data = fields
+            existing_dataset.data = data
+            dataset = existing_dataset
+        else:
             dataset = DatabaseULog.DatabaseData(
                 name=name,
                 multi_id=multi_instance,

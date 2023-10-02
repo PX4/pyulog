@@ -78,6 +78,33 @@ class TestDatabaseULog(unittest.TestCase):
             self.assertEqual(ulog.get_dataset(dataset.name),
                              dbulog_loaded.get_dataset(dataset.name))
 
+
+    def test_data_caching(self):
+        '''
+        Verify that the caching of dataset data works as expected.
+        '''
+        test_file = os.path.join(TEST_PATH, 'sample_log_small.ulg')
+
+        dbulog_saved = DatabaseULog(self.db_handle, log_file=test_file)
+        dbulog_saved.save()
+        primary_key = dbulog_saved.primary_key
+        dbulog_loaded = DatabaseULog(self.db_handle, primary_key=primary_key, lazy=True)
+        for dataset in dbulog_loaded.data_list:
+            cache_miss = dbulog_loaded.get_dataset(dataset.name,
+                                                   multi_instance=dataset.multi_id,
+                                                   caching=True)
+            cache_hit = dbulog_loaded.get_dataset(dataset.name,
+                                                  multi_instance=dataset.multi_id,
+                                                  caching=True)
+            uncached = dbulog_loaded.get_dataset(dataset.name,
+                                                 multi_instance=dataset.multi_id,
+                                                 caching=False)
+
+            self.assertEqual(cache_miss, cache_hit)
+            self.assertEqual(cache_miss, uncached)
+            self.assertIs(cache_miss, cache_hit)
+            self.assertIsNot(cache_miss, uncached)
+
     def test_save(self):
         '''
         Test that save() twice raises an error, since we currently do not
