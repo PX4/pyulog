@@ -93,7 +93,8 @@ class ULog(object):
             ret = _parse_string(cstr)
         return ret
 
-    def __init__(self, log_file, message_name_filter_list=None, disable_str_exceptions=True):
+    def __init__(self, log_file, message_name_filter_list=None, disable_str_exceptions=True,
+                 parse_header_only=False):
         """
         Initialize the object & load the file.
 
@@ -135,7 +136,7 @@ class ULog(object):
         ULog._disable_str_exceptions = disable_str_exceptions
 
         if log_file is not None:
-            self._load_file(log_file, message_name_filter_list)
+            self._load_file(log_file, message_name_filter_list, parse_header_only)
 
     ## parsed data
 
@@ -812,7 +813,7 @@ class ULog(object):
             self._msg_info_multiple_dict[msg_info.key] = [[msg_info.value]]
             self._msg_info_multiple_dict_types[msg_info.key] = msg_info.type
 
-    def _load_file(self, log_file, message_name_filter_list):
+    def _load_file(self, log_file, message_name_filter_list, parse_header_only=False):
         """ load and parse an ULog file into memory """
         if isinstance(log_file, str):
             self._file_handle = open(log_file, "rb") #pylint: disable=consider-using-with
@@ -826,6 +827,11 @@ class ULog(object):
 
         if self._debug:
             print("header end offset: {:}".format(self._file_handle.tell()))
+
+        if parse_header_only:
+            self._file_handle.close()
+            del self._file_handle
+            return
 
         if self.has_data_appended and len(self._appended_offsets) > 0:
             if self._debug:
