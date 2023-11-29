@@ -714,6 +714,8 @@ class ULog(object):
             self.message_name = ULog.parse_string(data[3:])
             self.field_data = [] # list of _FieldData
             self.timestamp_idx = -1
+            self.max_data_size = 0 # Max size of each data point (including padding fields at end)
+
             self._parse_format(message_formats)
 
             self.timestamp_offset = 0
@@ -728,6 +730,7 @@ class ULog(object):
             dtype_list = []
             for field in self.field_data:
                 numpy_type = ULog._UNPACK_TYPES[field.type_str][2]
+                self.max_data_size += ULog._UNPACK_TYPES[field.type_str][1]
                 dtype_list.append((field.field_name, numpy_type))
             self.dtype = np.dtype(dtype_list).newbyteorder('<')
 
@@ -767,19 +770,26 @@ class ULog(object):
         def __init__(self):
             self.timestamp = 0
 
-        def initialize(self, data, header, subscriptions, ulog_object):
+        def initialize(self, data, header, subscriptions, ulog_object) -> bool:
+            has_corruption = False
             msg_id, = ULog._unpack_ushort(data[:2])
             if msg_id in subscriptions:
-                if len(data)-2 == subscriptions[msg_id].dtype.itemsize:
-                    subscription = subscriptions[msg_id]
+                subscription = subscriptions[msg_id]
+                min_data_size = subscription.dtype.itemsize
+                data_size = len(data) - 2
+                if data_size < min_data_size or data_size > subscription.max_data_size:
+                    # Corrupt data: skip
+                    self.timestamp = 0
+                    has_corruption = True
+                else:
+                    if data_size > min_data_size:
+                        # Strip extra data (_padding bytes)
+                        data = data[:2+min_data_size]
                     # accumulate data to a buffer, will be parsed later
                     subscription.buffer += data[2:]
                     t_off = subscription.timestamp_offset
                     # TODO: the timestamp can have another size than uint64
                     self.timestamp, = ULog._unpack_uint64(data[t_off+2:t_off+10])
-                else:
-                    # Corrupt data: skip
-                    self.timestamp = 0
             else:
                 if not msg_id in ulog_object._filtered_message_ids:
                     # this is an error, but make it non-fatal
@@ -790,6 +800,8 @@ class ULog(object):
                         print('Warning: no subscription found for message id {:}. Continuing,'
                               ' but file is most likely corrupt'.format(msg_id))
                 self.timestamp = 0
+                has_corruption = True
+            return has_corruption
 
     def _add_parameter_default(self, msg_param):
         """ add a _MessageParameterDefault object """
@@ -1051,8 +1063,11 @@ class ULog(object):
                         else:
                             self._logged_messages_tagged[msg_log_tagged.tag] = [msg_log_tagged]
                     elif header.msg_type == self.MSG_TYPE_DATA:
-                        msg_data.initialize(data, header, self._subscriptions, self)
-                        if msg_data.timestamp != 0 and msg_data.timestamp > self._last_timestamp:
+                        has_corruption = msg_data.initialize(data, header, self._subscriptions,
+                                                             self)
+                        if has_corruption:
+                            self._file_corrupt = True
+                        elif msg_data.timestamp > self._last_timestamp:
                             self._last_timestamp = msg_data.timestamp
                     elif header.msg_type == self.MSG_TYPE_DROPOUT:
                         msg_dropout = self.MessageDropout(data, header,
