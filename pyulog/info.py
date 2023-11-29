@@ -14,6 +14,10 @@ from .core import ULog
 
 def show_info(ulog, verbose):
     """Show general information from an ULog"""
+
+    if ulog.file_corruption:
+        print("Warning: file has data corruption(s)")
+
     m1, s1 = divmod(int(ulog.start_timestamp/1e6), 60)
     h1, m1 = divmod(m1, 60)
     m2, s2 = divmod(int((ulog.last_timestamp - ulog.start_timestamp)/1e6), 60)
