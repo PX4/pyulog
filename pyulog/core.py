@@ -799,8 +799,8 @@ class ULog(object):
                             print(ulog_object._file_handle.tell())
                         print('Warning: no subscription found for message id {:}. Continuing,'
                               ' but file is most likely corrupt'.format(msg_id))
+                    has_corruption = True
                 self.timestamp = 0
-                has_corruption = True
             return has_corruption
 
     def _add_parameter_default(self, msg_param):
