@@ -72,11 +72,15 @@ class TestDatabaseULog(unittest.TestCase):
         primary_key = dbulog_saved.primary_key
         dbulog_loaded = DatabaseULog(self.db_handle, primary_key=primary_key)
         for dataset in ulog.data_list:
-            db_dataset = next(ds for ds in dbulog_loaded.data_list if ds.name == dataset.name)
+            db_dataset = next(ds for ds in dbulog_loaded.data_list
+                              if ds.name == dataset.name and ds.multi_id == dataset.multi_id)
             self.assertEqual(len(db_dataset.data), 0)
             self.assertNotEqual(len(dataset.data), 0)
-            self.assertEqual(ulog.get_dataset(dataset.name),
-                             dbulog_loaded.get_dataset(dataset.name))
+            ulog_dataset = ulog.get_dataset(dataset.name,
+                                            multi_instance=dataset.multi_id)
+            dbulog_dataset = dbulog_loaded.get_dataset(dataset.name,
+                                                       multi_instance=dataset.multi_id)
+            self.assertEqual(ulog_dataset, dbulog_dataset)
 
 
     def test_data_caching(self):
