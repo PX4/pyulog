@@ -5,8 +5,8 @@
 Convert a ULog file into CSV file(s)
 """
 #commandline usage: python <file.py> <file.ulg> -flight_start <insert timestamp value> -flight_end <insert timestamp value>
-#OUTS: python crop_ulog Jan_Subscale_Launch.ulg -flight_start 19:20 -flight_end 21:40
-#for us 19:20 to 21:40
+#OURS: python crop_ulog.py Jan_Subscale_Launch.ulg -flight_start 19:20 -flight_end 21:40
+#make sure you use python not python3 this script does not support python3
 
 from __future__ import print_function
 
@@ -45,7 +45,7 @@ def main():
     crop_ulog(args.ulog_file, flight_start_seconds, flight_end_seconds)
 
     print(" complete")
-    
+
 def convert_to_seconds(time_str):
     """Converts time in HH:MM format to seconds"""
     if time_str is None:
