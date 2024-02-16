@@ -283,9 +283,9 @@ class ULog(object):
 
     def _write_info_messages(self, file):
         for message in self._msg_info_dict.items():
-            value_type: str = self._msg_info_dict_types[message[0]]
-            key: str = value_type + ' ' + message[0]
-            value: str = message[1]
+            value_type = self._msg_info_dict_types[message[0]]
+            key = value_type + ' ' + message[0]
+            value = message[1]
 
             data = self._make_info_message_data(key, value, value_type)
             header = struct.pack('<HB', len(data), self.MSG_TYPE_INFO)
@@ -295,8 +295,8 @@ class ULog(object):
 
     def _write_info_multiple_message(self, file):
         for base_key, value_sets in self._msg_info_multiple_dict.items():
-            value_type: str = self._msg_info_multiple_dict_types[base_key]
-            key: str = value_type + ' ' + base_key
+            value_type = self._msg_info_multiple_dict_types[base_key]
+            key = value_type + ' ' + base_key
 
             for value_set in value_sets:
                 continued = False
@@ -308,6 +308,7 @@ class ULog(object):
                     file.write(data)
 
                     continued = True
+
 
     def _write_initial_parameters(self, file):
         for parameter_name, value in self._initial_parameters.items():
@@ -330,7 +331,7 @@ class ULog(object):
                 file.write(header)
                 file.write(data)
 
-    def _make_parameter_data(self, name: str, value) -> bytes:
+    def _make_parameter_data(self, name, value):
         if isinstance(value, int):
             value_type = "int32_t"
         elif isinstance(value, float):
@@ -338,12 +339,12 @@ class ULog(object):
         else:
             raise TypeError("Found unknown parameter value type")
 
-        key: str = value_type + ' ' + name
+        key = value_type + ' ' + name
 
         return self._make_info_message_data(key, value, value_type)
 
-    def _make_info_message_data(self, key: str, value, value_type: str, continued=None) -> bytes:
-        key_bytes = bytes(key, 'utf-8')
+    def _make_info_message_data(self, key, value, value_type, continued=None):
+        key_bytes = key.encode('utf-8')
         data = bytearray()
 
         if continued is not None:
@@ -353,7 +354,7 @@ class ULog(object):
         data.extend(key_bytes)
 
         if value_type.startswith('char['):
-            value_bytes = bytes(value, 'utf-8')
+            value_bytes = value.encode('utf-8')
             data.extend(value_bytes)
         elif value_type.startswith('uint8_t['):
             data.extend(value)
@@ -370,9 +371,9 @@ class ULog(object):
             data.extend(bytes(message_format.name + ':', 'utf-8'))
             for field in message_format.fields:
                 # Determine the field type (e.g. int16_t or float[8])
-                field_type: str = field[0]
-                field_count: int = field[1]
-                field_name: str = field[2]
+                field_type = field[0]
+                field_count = field[1]
+                field_name = field[2]
 
                 if field_count > 1:
                     encoded_field = '%s[%d] %s;' % (field_type, field_count, field_name)
@@ -770,9 +771,9 @@ class ULog(object):
         def __init__(self):
             self.timestamp = 0
 
-        def initialize(self, data, header, subscriptions, ulog_object) -> bool:
+        def initialize(self, data, header, subscriptions, ulog_object):
             has_corruption = False
-            msg_id, = ULog._unpack_ushort(data[:2])
+            msg_id = ULog._unpack_ushort(data[:2])[0]
             if msg_id in subscriptions:
                 subscription = subscriptions[msg_id]
                 min_data_size = subscription.dtype.itemsize
@@ -784,21 +785,21 @@ class ULog(object):
                 else:
                     if data_size > min_data_size:
                         # Strip extra data (_padding bytes)
-                        data = data[:2+min_data_size]
+                        data = data[:2 + min_data_size]
                     # accumulate data to a buffer, will be parsed later
                     subscription.buffer += data[2:]
                     t_off = subscription.timestamp_offset
                     # TODO: the timestamp can have another size than uint64
-                    self.timestamp, = ULog._unpack_uint64(data[t_off+2:t_off+10])
+                    self.timestamp = ULog._unpack_uint64(data[t_off + 2: t_off + 10])[0]
             else:
-                if not msg_id in ulog_object._filtered_message_ids:
+                if msg_id not in ulog_object._filtered_message_ids:
                     # this is an error, but make it non-fatal
-                    if not msg_id in ulog_object._missing_message_ids:
+                    if msg_id not in ulog_object._missing_message_ids:
                         ulog_object._missing_message_ids.add(msg_id)
                         if ulog_object._debug:
-                            print(ulog_object._file_handle.tell())
-                        print('Warning: no subscription found for message id {:}. Continuing,'
-                              ' but file is most likely corrupt'.format(msg_id))
+                            print (ulog_object._file_handle.tell())
+                        print ('Warning: no subscription found for message id {:}. Continuing,'
+                            ' but file is most likely corrupt'.format(msg_id))
                     has_corruption = True
                 self.timestamp = 0
             return has_corruption
