@@ -18,8 +18,6 @@ print("\nCompleted importing core file")
 
 #pylint: disable=too-many-locals, invalid-name, consider-using-enumerate
 
-
-
 def main():
     """Command line interface"""
     print("\nStarting argument parsing ...")
@@ -37,23 +35,6 @@ def main():
 
     args = parser.parse_args()
     print("Completed argument parsing")
-
- # Convert HH:MM format to seconds
-    flight_start_seconds = convert_to_seconds(args.flight_start)
-    flight_end_seconds = convert_to_seconds(args.flight_end)
-
-    crop_ulog(args.ulog_file, flight_start_seconds, flight_end_seconds)
-
-    print(" complete")
-
-def convert_to_seconds(time_str):
-    """Converts time in HH:MM format to seconds"""
-    if time_str is None:
-        return None
-
-    hours, minutes = map(int, time_str.split(':'))
-    return hours * 3600 + minutes * 60
-
 
 
 def crop_ulog(ulog_file_name, flight_start, flight_end):
