@@ -43,8 +43,8 @@ class PX4ULog(object):
                 19: 'Two-rotor VTOL (Tailsitter)',
                 20: 'Quad-rotor VTOL (Tailsitter)',
                 21: 'Tiltrotor VTOL',
-                22: 'VTOL Standard', #VTOL reserved 2
-                23: 'VTOL reserved 3',
+                22: 'VTOL Standard',
+                23: 'VTOL Tailsitter',
                 24: 'VTOL reserved 4',
                 25: 'VTOL reserved 5',
                 26: 'Onboard Gimbal',
