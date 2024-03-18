@@ -94,7 +94,7 @@ class TestCommandLineTools(unittest.TestCase):
         ]
         extract_gps_dump.main()
 
-    @data('sample', 'sample_appended')
+    @data('sample', 'sample_appended', 'sample_px4_events')
     def test_messages_cli(self, test_case):
         """
         Test that the output of 'ulog_messages' on sample logs match previously generated results.
