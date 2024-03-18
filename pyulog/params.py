@@ -3,8 +3,6 @@
 Extract parameters from an ULog file
 """
 
-from __future__ import print_function
-
 import argparse
 import sys
 

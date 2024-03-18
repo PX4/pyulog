@@ -1,7 +1,5 @@
 """ Main Module to load and parse an ULog file """
 
-from __future__ import print_function
-
 import struct
 import copy
 import sys
