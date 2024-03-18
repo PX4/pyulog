@@ -1,0 +1,18 @@
+475214:49:10 INFO: logging: opening log file 2024-3-18/14_49_10.ulg
+475214:49:10 INFO: [px4] Startup script returned successfully
+475214:49:10 INFO: [logger] Start file log (type: full)
+475214:49:10 INFO: [logger] Opened full log file: ./log/2024-03-18/14_49_10.ulg
+475214:49:10 INFO: [mavlink] partner IP: 127.0.0.1
+475214:49:11 WARNING: [health_and_arming_checks] Preflight: GPS fix too low
+475214:49:18 INFO: [tone_alarm] home set
+475214:49:18 WARNING: [health_and_arming_checks] Preflight: GPS fix too low
+475214:49:21 INFO: [commander] [32mReady for takeoff![0m
+475214:49:25 INFO: Armed by internal command
+475214:49:25 INFO: Using default takeoff altitude: 2.50 m
+475214:49:25 INFO: [tone_alarm] arming warning
+475214:49:27 INFO: Takeoff detected
+475214:49:32 INFO: RTL: start return at 491 m (3 m above destination)
+475214:49:32 INFO: RTL: land at destination
+475214:49:38 INFO: Landing detected
+475214:49:40 INFO: Disarmed by landing
+475214:49:40 INFO: [tone_alarm] notify neutral

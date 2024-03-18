@@ -1,0 +1,3 @@
+[submodule "3rd_party/libevents"]
+	path = 3rd_party/libevents
+	url = https://github.com/mavlink/libevents.git

@@ -1,0 +1,4 @@
+0:00:00 INFO: [px4] Startup script returned successfully
+0:00:00 INFO: logging: opening log file 2022-4-29/8_45_27.ulg
+0:00:00 INFO: [logger] Start file log (type: full)
+0:00:00 INFO: [logger] Opened full log file: ./log/2022-04-29/08_45_27.ulg

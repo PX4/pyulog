@@ -1,0 +1,3 @@
+0:00:22 INFO: [commander] Takeoff detected
+0:00:23 INFO: [commander] Landing detected
+0:00:25 INFO: [commander] Disarmed by landing
