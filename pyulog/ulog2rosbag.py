@@ -4,8 +4,6 @@
 Convert a ULog file into rosbag file(s)
 """
 
-from __future__ import print_function
-
 from collections import defaultdict
 import argparse
 import re

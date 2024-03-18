@@ -4,8 +4,6 @@
 Convert a ULog file into CSV file(s)
 """
 
-from __future__ import print_function
-
 import argparse
 import os
 import numpy as np

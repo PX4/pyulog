@@ -3,8 +3,6 @@
 Convert a ULog file into a KML file (positioning information)
 """
 
-from __future__ import print_function
-
 import argparse
 import simplekml # pylint: disable=import-error
 

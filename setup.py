@@ -8,9 +8,6 @@ The file format is documented on https://docs.px4.io/master/en/dev_log/ulog_file
 
 """
 
-from __future__ import print_function
-import os
-import sys
 import versioneer
 
 from setuptools import setup, find_packages

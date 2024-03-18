@@ -3,8 +3,6 @@
 Display logged messages from an ULog file
 """
 
-from __future__ import print_function
-
 import argparse
 
 from .core import ULog
