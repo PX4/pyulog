@@ -2,7 +2,7 @@
 
 This repository contains a python package to parse ULog files and scripts to
 convert and display them. ULog is a self-describing logging format which is
-documented [here](https://dev.px4.io/en/log/ulog_file_format.html).
+documented [here](https://docs.px4.io/main/en/dev_log/ulog_file_format.html).
 
 The provided [command line scripts](#scripts) are:
 - `ulog_info`: display information from an ULog file.
