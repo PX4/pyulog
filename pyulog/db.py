@@ -114,15 +114,16 @@ class DatabaseULog(ULog):
         if log_file is None:
             return None
         if isinstance(log_file, str):
-            log_file = open(log_file, 'rb') # pylint: disable=consider-using-with
-            log_context = log_file
+            file_context = open(log_file, 'rb') # pylint: disable=consider-using-with
+        elif log_file.closed:
+            file_context = open(log_file.name, 'rb')
         else:
-            log_context = contextlib.nullcontext()
+            file_context = contextlib.nullcontext(log_file)
 
         file_hash = hashlib.sha256()
-        with log_context:
+        with file_context as open_file:
             while True:
-                block = log_file.read(4096)
+                block = open_file.read(4096)
                 file_hash.update(block)
                 if block == b'':
                     break
