@@ -142,7 +142,8 @@ class TestDatabaseULog(unittest.TestCase):
     @data('sample_log_small')
     def test_sha256sum(self, test_case):
         '''
-        Verify that the sha256sum set on save can be used to find the same file again.
+        Verify that the sha256sum set on save can be used to find the same file
+        again, using any of the approved file input methods.
         '''
 
         test_file = os.path.join(TEST_PATH, f'{test_case}.ulg')
@@ -150,6 +151,14 @@ class TestDatabaseULog(unittest.TestCase):
         dbulog.save()
         digest = DatabaseULog.calc_sha256sum(test_file)
         self.assertEqual(digest, dbulog.sha256sum)
+
+        test_file_handle = open(test_file, 'rb') # pylint: disable=consider-using-with
+        open_digest = DatabaseULog.calc_sha256sum(test_file_handle)
+        self.assertEqual(digest, open_digest)
+
+        test_file_handle.close()
+        closed_digest = DatabaseULog.calc_sha256sum(test_file_handle)
+        self.assertEqual(digest, closed_digest)
 
         pk_from_digest = DatabaseULog.primary_key_from_sha256sum(self.db_handle, digest)
         self.assertEqual(pk_from_digest, dbulog.primary_key)
