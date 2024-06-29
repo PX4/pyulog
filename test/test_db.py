@@ -54,8 +54,7 @@ class TestDatabaseULog(unittest.TestCase):
         dbulog_saved.save()
         primary_key = dbulog_saved.primary_key
         dbulog_loaded = DatabaseULog(self.db_handle, primary_key=primary_key, lazy=False)
-        for ulog_key, ulog_value in ulog.__dict__.items():
-            self.assertEqual(ulog_value, getattr(dbulog_loaded, ulog_key))
+        self.assertEqual(ulog, dbulog_loaded)
 
     def test_lazy(self):
         '''

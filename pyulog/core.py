@@ -482,6 +482,19 @@ class ULog(object):
 
         return changed_param_items
 
+    def __eq__(self, other):
+        """
+        If the other object has all the same data as we have, we want to
+        consider them equal, even if the other object has extra fields, because
+        the user cares about the ULog contents.
+        """
+        if not isinstance(other, ULog):
+            return NotImplemented
+        return all(
+            self_value == getattr(other, field)
+            for field, self_value in self.__dict__.items()
+        )
+
     class Data(object):
         """ contains the final topic data for a single topic and instance """
 
