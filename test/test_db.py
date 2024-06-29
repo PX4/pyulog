@@ -4,6 +4,7 @@ Test the DatabaseULog module.
 
 import unittest
 import os
+import tempfile
 from unittest.mock import patch
 import numpy as np
 from ddt import ddt, data
@@ -231,3 +232,36 @@ class TestDatabaseULog(unittest.TestCase):
                         self.assertEqual(len(db_timestamps), len(values))
                         np.testing.assert_allclose(db_timestamps, values)
             cur.close()
+
+    @data('sample',
+          'sample_appended',
+          'sample_appended_multiple',
+          'sample_logging_tagged_and_default_params')
+    def test_write_ulog(self, base_name):
+        '''
+        Test that the write_ulog method successfully replicates all relevant data.
+        '''
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            ulog_file_name = os.path.join(TEST_PATH, base_name + '.ulg')
+            written_ulog_file_name = os.path.join(tmpdirname, base_name + '_copy.ulg')
+
+            dbulog = DatabaseULog(self.db_handle, log_file=ulog_file_name)
+            dbulog.save()
+
+            lazy_loaded_dbulog = DatabaseULog(
+                self.db_handle,
+                primary_key=dbulog.primary_key,
+                lazy=True
+            )
+            with self.assertRaises(ValueError):
+                lazy_loaded_dbulog.write_ulog(written_ulog_file_name)
+
+            loaded_dbulog = DatabaseULog(self.db_handle, primary_key=dbulog.primary_key, lazy=False)
+            loaded_dbulog.write_ulog(written_ulog_file_name)
+            copied = ULog(written_ulog_file_name)
+
+        # Some fields are not copied but dropped, so we cheat by modifying the original
+        loaded_dbulog._sync_seq_cnt = 0  # pylint: disable=protected-access
+        loaded_dbulog._appended_offsets = []  # pylint: disable=protected-access
+        loaded_dbulog._incompat_flags[0] &= 0xFE  # pylint: disable=protected-access
+        assert copied == loaded_dbulog
