@@ -170,6 +170,7 @@ class DatabaseULog(ULog):
 
         self._pk = primary_key
         self._db = db_handle
+        self._lazy_loaded = lazy
         if log_file is not None:
             self._sha256sum = DatabaseULog.calc_sha256sum(log_file)
 
@@ -186,6 +187,11 @@ class DatabaseULog(ULog):
         if type(other) is ULog:  # pylint: disable=unidiomatic-typecheck
             return other.__eq__(self)
         return super().__eq__(other)
+
+    def write_ulog(self, path):
+        if self._lazy_loaded:
+            raise ValueError('Cannot write after lazy load because it has no datasets.')
+        super().write_ulog(path)
 
     @property
     def primary_key(self):
@@ -400,6 +406,7 @@ class DatabaseULog(ULog):
                 self._changed_parameters.append((timestamp, key, value))
 
             cur.close()
+        self._lazy_loaded = lazy
 
     def get_dataset(self, name, multi_instance=0, lazy=False, db_cursor=None, caching=True):
         '''
