@@ -49,7 +49,7 @@ class DatabaseULog(ULog):
     contsructor will throw an exception. See the documentation of
     "ulog_migratedb" for more information.
     '''
-    SCHEMA_VERSION = 3
+    SCHEMA_VERSION = 4
 
     @staticmethod
     def get_db_handle(db_path):
