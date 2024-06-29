@@ -177,6 +177,16 @@ class DatabaseULog(ULog):
         if primary_key is not None:
             self.load(lazy=lazy)
 
+    def __eq__(self, other):
+        """
+        If the other object is a normal ULog, then we just want to compare ULog
+        data, not DatabaseULog specific fields, because we want to compare
+        theULog file contents.
+        """
+        if type(other) is ULog:  # pylint: disable=unidiomatic-typecheck
+            return other.__eq__(self)
+        return super().__eq__(other)
+
     @property
     def primary_key(self):
         '''The primary key of the ulog, pointing to the correct "ULog" row in the database.'''
