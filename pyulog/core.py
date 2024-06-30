@@ -3,6 +3,7 @@
 import struct
 import copy
 import sys
+import contextlib
 import numpy as np
 #pylint: disable=too-many-instance-attributes, unused-argument, missing-docstring
 #pylint: disable=protected-access, too-many-branches
@@ -236,9 +237,14 @@ class ULog(object):
         return [elem for elem in self._data_list
                 if elem.name == name and elem.multi_id == multi_instance][0]
 
-    def write_ulog(self, path):
+    def write_ulog(self, log_file):
         """ write current data back into a ulog file """
-        with open(path, "wb") as ulog_file:
+        if isinstance(log_file, str):
+            handle = open(log_file, "wb")
+        else:
+            handle = contextlib.nullcontext(log_file)
+
+        with handle as ulog_file:
             # Definition section
             self._write_file_header(ulog_file)
             self._write_flags(ulog_file)

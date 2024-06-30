@@ -6,6 +6,7 @@ import os
 import inspect
 import unittest
 import tempfile
+from io import BytesIO
 
 from ddt import ddt, data
 
@@ -35,6 +36,35 @@ class TestULog(unittest.TestCase):
             original = pyulog.ULog(ulog_file_name)
             original.write_ulog(written_ulog_file_name)
             copied = pyulog.ULog(written_ulog_file_name)
+
+        for original_key, original_value in original.__dict__.items():
+            copied_value = getattr(copied, original_key)
+            if original_key == '_sync_seq_cnt':
+                # Sync messages are counted on parse, but otherwise dropped, so
+                # we don't rewrite them
+                assert copied_value == 0
+            elif original_key == '_appended_offsets':
+                # Abruptly ended messages just before offsets are dropped, so
+                # we don't rewrite appended offsets
+                assert copied_value == []
+            elif original_key == '_incompat_flags':
+                # Same reasoning on incompat_flags[0] as for '_appended_offsets'
+                assert copied_value[0] == original_value[0] & 0xFE # pylint: disable=unsubscriptable-object
+                assert copied_value[1:] == original_value[1:] # pylint: disable=unsubscriptable-object
+            else:
+                assert copied_value == original_value
+
+    @data('sample')
+    def test_write_ulog_memory(self, base_name):
+        '''
+        Test that the write_ulog method can write bytes to memory.
+        '''
+        ulog_file_name = os.path.join(TEST_PATH, base_name + '.ulg')
+        original = pyulog.ULog(ulog_file_name)
+        with BytesIO() as bytes_handle:
+            original.write_ulog(bytes_handle)
+            bytes_handle.seek(0)
+            copied = pyulog.ULog(bytes_handle)
 
         for original_key, original_value in original.__dict__.items():
             copied_value = getattr(copied, original_key)
