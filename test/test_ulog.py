@@ -23,6 +23,7 @@ class TestULog(unittest.TestCase):
     @data('sample',
           'sample_appended',
           'sample_appended_multiple',
+          'sample_unordered',
           'sample_logging_tagged_and_default_params')
     def test_write_ulog(self, base_name):
         '''
