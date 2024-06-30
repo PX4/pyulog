@@ -1,0 +1,17 @@
+BEGIN;
+CREATE INDEX IF NOT EXISTS btree_ULogAppendedOffsets_ULogId ON ULogAppendedOffsets(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogDataset_ULogId ON ULogDataset(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogField_DatasetId ON ULogField(DatasetId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageDropout_ULogId ON ULogMessageDropout(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageFormat_ULogId ON ULogMessageFormat(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageFormatField_MessageId ON ULogMessageFormatField(MessageId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageLogging_ULogId ON ULogMessageLogging(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageLoggingTagged_ULogId ON ULogMessageLoggingTagged(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageInfo_ULogId ON ULogMessageInfo(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageInfoMultiple_ULogId ON ULogMessageInfoMultiple(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageInfoMultipleList_MessageId ON ULogMessageInfoMultipleList(MessageId);
+CREATE INDEX IF NOT EXISTS btree_ULogMessageInfoMultipleListElement_ListId ON ULogMessageInfoMultipleListElement(ListId);
+CREATE INDEX IF NOT EXISTS btree_ULogInitialParameter_ULogId ON ULogInitialParameter(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogChangedParameter_ULogId ON ULogChangedParameter(ULogId);
+CREATE INDEX IF NOT EXISTS btree_ULogDefaultParameter_ULogId ON ULogDefaultParameter(ULogId);
+COMMIT;

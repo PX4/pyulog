@@ -49,7 +49,7 @@ class DatabaseULog(ULog):
     contsructor will throw an exception. See the documentation of
     "ulog_migratedb" for more information.
     '''
-    SCHEMA_VERSION = 3
+    SCHEMA_VERSION = 5
 
     @staticmethod
     def get_db_handle(db_path):
@@ -170,12 +170,28 @@ class DatabaseULog(ULog):
 
         self._pk = primary_key
         self._db = db_handle
+        self._lazy_loaded = lazy
         if log_file is not None:
             self._sha256sum = DatabaseULog.calc_sha256sum(log_file)
 
         super().__init__(log_file, **kwargs)
         if primary_key is not None:
             self.load(lazy=lazy)
+
+    def __eq__(self, other):
+        """
+        If the other object is a normal ULog, then we just want to compare ULog
+        data, not DatabaseULog specific fields, because we want to compare
+        theULog file contents.
+        """
+        if type(other) is ULog:  # pylint: disable=unidiomatic-typecheck
+            return other.__eq__(self)
+        return super().__eq__(other)
+
+    def write_ulog(self, path):
+        if self._lazy_loaded:
+            raise ValueError('Cannot write after lazy load because it has no datasets.')
+        super().write_ulog(path)
 
     @property
     def primary_key(self):
@@ -390,6 +406,7 @@ class DatabaseULog(ULog):
                 self._changed_parameters.append((timestamp, key, value))
 
             cur.close()
+        self._lazy_loaded = lazy
 
     def get_dataset(self, name, multi_instance=0, lazy=False, db_cursor=None, caching=True):
         '''
