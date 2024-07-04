@@ -40,6 +40,7 @@ class TestULog(unittest.TestCase):
     @data('sample',
           'sample_appended',
           'sample_appended_multiple',
+          'sample_unordered',
           'sample_logging_tagged_and_default_params')
     def test_write_ulog(self, base_name):
         '''
@@ -49,9 +50,9 @@ class TestULog(unittest.TestCase):
             ulog_file_name = os.path.join(TEST_PATH, base_name + '.ulg')
             written_ulog_file_name = os.path.join(tmpdirname, base_name + '_copy.ulg')
 
-            original = pyulog.ULog(ulog_file_name)
+            original = pyulog.ULog(ulog_file_name, sort_data=True)
             original.write_ulog(written_ulog_file_name)
-            copied = pyulog.ULog(written_ulog_file_name)
+            copied = pyulog.ULog(written_ulog_file_name, sort_data=True)
 
         # Some fields are not copied but dropped, so we cheat by modifying the original
         original._sync_seq_cnt = 0  # pylint: disable=protected-access
