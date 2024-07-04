@@ -432,6 +432,12 @@ class ULog(object):
                     field_type = field.type_str
                     field_encoding = self._UNPACK_TYPES[field_type][0]
                     field_data = data_set.data[field_name][i_sample]
+
+                    # For char type, convert np.int8 into single bytes() object
+                    # so that struct.pack can handle it
+                    if field_encoding == 'c':
+                        field_data = bytes(chr(field_data), 'utf-8')
+
                     data.extend(struct.pack('<' + field_encoding, field_data))
 
                 header = struct.pack('<HB', len(data), self.MSG_TYPE_DATA)
