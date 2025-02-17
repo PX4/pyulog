@@ -6,6 +6,7 @@ Extract the raw gps communication from an ULog file.
 import argparse
 import os
 import sys
+import numpy as np
 
 from .core import ULog
 
@@ -83,7 +84,7 @@ def main():
                 msg_len = msg_lens[i]
                 if instance == required_instance:
                     if msg_len & (1<<7):
-                        msg_len = msg_len & ~(1<<7)
+                        msg_len = msg_len & ~(np.uint8(1) << 7)
                         file_handle = to_dev_file
                     else:
                         file_handle = from_dev_file
