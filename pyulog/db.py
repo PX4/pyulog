@@ -189,10 +189,10 @@ class DatabaseULog(ULog):
             return other.__eq__(self)
         return super().__eq__(other)
 
-    def write_ulog(self, path):
+    def write_ulog(self, log_file):
         if self._lazy_loaded:
             raise ValueError('Cannot write after lazy load because it has no datasets.')
-        super().write_ulog(path)
+        super().write_ulog(log_file)
 
     @property
     def primary_key(self):
