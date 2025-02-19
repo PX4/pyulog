@@ -2,12 +2,13 @@
 Extract values from a ULog file message to use in scripting
 """
 
+from typing import List
 import numpy as np
 from .core import ULog
 
 def extract_message(ulog_file_name: str, message: str,
                     time_s: "int | None" = None, time_e: "int | None" = None,
-                    disable_str_exceptions: bool = False) -> list[dict]:
+                    disable_str_exceptions: bool = False) -> List[dict]:
     """
     Extract values from a ULog file
 
@@ -16,7 +17,7 @@ def extract_message(ulog_file_name: str, message: str,
     :param time_s: (int) Offset time for conversion in seconds
     :param time_e: (int) Limit until time for conversion in seconds
 
-    :return: (list[dict]) A list of each record from the ULog as key-value pairs
+    :return: (List[dict]) A list of each record from the ULog as key-value pairs
     """
 
     if not isinstance(message, str):
