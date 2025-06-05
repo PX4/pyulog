@@ -375,11 +375,11 @@ class ULog(object):
             for field in message_format.fields:
                 # Determine the field type (e.g. int16_t or float[8])
                 field_type: str = field[0]
-                field_count: int = field[1]
+                array_size: int = field[1]
                 field_name: str = field[2]
 
-                if field_count > 1:
-                    encoded_field = '%s[%d] %s;' % (field_type, field_count, field_name)
+                if array_size > 0:
+                    encoded_field = '%s[%d] %s;' % (field_type, array_size, field_name)
                 else:
                     encoded_field = '%s %s;' % (field_type, field_name)
                 data.extend(bytes(encoded_field, 'utf-8'))
@@ -643,7 +643,7 @@ class ULog(object):
             name_str = field_str_split[1]
             a_pos = type_str.find('[')
             if a_pos == -1:
-                array_size = 1
+                array_size = 0
                 type_name = type_str
             else:
                 b_pos = type_str.find(']')
@@ -771,7 +771,7 @@ class ULog(object):
             message_format = message_formats[type_name]
             for (type_name_fmt, array_size, field_name) in message_format.fields:
                 if type_name_fmt in ULog._UNPACK_TYPES:
-                    if array_size > 1:
+                    if array_size > 0:
                         for i in range(array_size):
                             self.field_data.append(ULog._FieldData(
                                 prefix_str+field_name+'['+str(i)+']', type_name_fmt))
@@ -781,7 +781,7 @@ class ULog(object):
                     if prefix_str+field_name == 'timestamp':
                         self.timestamp_idx = len(self.field_data) - 1
                 else: # nested type
-                    if array_size > 1:
+                    if array_size > 0:
                         for i in range(array_size):
                             self._parse_nested_type(prefix_str+field_name+'['+str(i)+'].',
                                                     type_name_fmt, message_formats)
