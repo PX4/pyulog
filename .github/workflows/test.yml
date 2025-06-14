@@ -26,7 +26,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
         run: |
-          pip install cython ddt numpy pylint pytest 
+          pip install cython ddt numpy pylint pytest 'setuptools;python_version >= "3.12"'
           python setup.py build install
       - name: Running Tests
         run: |
