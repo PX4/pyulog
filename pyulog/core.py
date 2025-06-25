@@ -101,6 +101,7 @@ class ULog(object):
         :param message_name_filter_list: list of strings, to only load messages
                with the given names. If None, load everything.
         :param disable_str_parser_exceptions: If True, ignore string parsing errors
+        :param parse_header_only: If True, only parse the header section
         """
 
         self._debug = False
@@ -125,7 +126,7 @@ class ULog(object):
         self._subscriptions = {} # dict of key=msg_id, value=_MessageAddLogged
         self._filtered_message_ids = set() # _MessageAddLogged id's that are filtered
         self._missing_message_ids = set() # _MessageAddLogged id's that could not be found
-        self._file_version = 0
+        self._file_version = 0  
         self._compat_flags = [0] * 8
         self._incompat_flags = [0] * 8
         self._appended_offsets = [] # file offsets for appended data
@@ -136,6 +137,88 @@ class ULog(object):
 
         if log_file is not None:
             self._load_file(log_file, message_name_filter_list, parse_header_only)
+
+    @classmethod
+    def create(cls, sys_name, ver_hw, ver_sw, start_timestamp=None, time_ref_utc=0, 
+               ver_sw_release=None, **additional_info):
+        """
+        Create a new empty ULog with the specified header information.
+        
+        :param sys_name: Name of the system (e.g., 'PX4', 'ArduPilot')
+        :param ver_hw: Hardware version/board name (e.g., 'PX4FMU_V4', 'SITL')
+        :param ver_sw: Software version string (e.g., 'v1.14.0', 'main-abc123')
+        :param start_timestamp: Start timestamp in microseconds (defaults to current time)
+        :param time_ref_utc: UTC time offset in seconds (default 0)
+        :param ver_sw_release: Software version as uint32 (optional, auto-generated if not provided)
+        :param additional_info: Additional info messages as key=value pairs
+        :return: New ULog instance
+        """
+        # Create instance without calling normal constructor
+        instance = cls.__new__(cls)
+        
+        # Initialize all attributes
+        instance._debug = False
+        instance._file_corrupt = False
+        instance._start_timestamp = 0
+        instance._last_timestamp = 0
+        instance._msg_info_dict = {}
+        instance._msg_info_dict_types = {}
+        instance._msg_info_multiple_dict = {}
+        instance._msg_info_multiple_dict_types = {}
+        instance._initial_parameters = {}
+        instance._default_parameters = {}
+        instance._changed_parameters = []
+        instance._message_formats = {}
+        instance._logged_messages = []
+        instance._logged_messages_tagged = {}
+        instance._dropouts = []
+        instance._data_list = []
+        instance._subscriptions = {}
+        instance._filtered_message_ids = set()
+        instance._missing_message_ids = set()
+        instance._file_version = 1
+        instance._compat_flags = [0] * 8
+        instance._incompat_flags = [0] * 8
+        instance._appended_offsets = []
+        instance._has_sync = True
+        instance._sync_seq_cnt = 0
+        
+        # Set timestamp
+        if start_timestamp is None:
+            import time
+            start_timestamp = int(time.time() * 1000000)
+        
+        instance._start_timestamp = start_timestamp
+        instance._last_timestamp = start_timestamp
+        
+        # Add required system information
+        instance.add_info_message(f'char[{len(sys_name)}] sys_name', sys_name)
+        instance.add_info_message(f'char[{len(ver_hw)}] ver_hw', ver_hw)
+        instance.add_info_message(f'char[{len(ver_sw)}] ver_sw', ver_sw)
+        instance.add_info_message('int32_t time_ref_utc', time_ref_utc)
+        
+        # Add software release version
+        if ver_sw_release is not None:
+            instance.add_info_message('uint32_t ver_sw_release', ver_sw_release)
+        
+        # Add any additional info messages
+        for key, value in additional_info.items():
+            # Try to infer type from value
+            if isinstance(value, str):
+                type_str = f'char[{len(value)}]'
+            elif isinstance(value, int):
+                if -2147483648 <= value <= 2147483647:
+                    type_str = 'int32_t'
+                else:
+                    type_str = 'int64_t'
+            elif isinstance(value, float):
+                type_str = 'float'
+            else:
+                raise ValueError(f"Unsupported type for info message '{key}': {type(value)}")
+            
+            instance.add_info_message(f'{type_str} {key}', value)
+        
+        return instance
 
     ## parsed data
 
@@ -239,6 +322,10 @@ class ULog(object):
 
     def write_ulog(self, log_file):
         """ write current data back into a ulog file """
+        # Finalize data before writing if we have subscriptions
+        if self._subscriptions:
+            self.finalize_data()
+            
         if isinstance(log_file, str):
             handle = open(log_file, "wb")
         else:
@@ -1182,3 +1269,367 @@ class ULog(object):
             elif version[3] < 255: type_str = ' (RC)'
             return 'v{}.{}.{}{}'.format(version[0], version[1], version[2], type_str)
         return None
+
+
+
+    def add_info_message(self, key, value):
+        """
+        Add an information message to the ULog.
+        
+        :param key: Key in format 'type name', e.g. 'char[16] sys_name'
+        :param value: Value for the key
+        """
+        # Parse the key to extract type and name
+        key_parts = key.split(' ', 1)
+        if len(key_parts) != 2:
+            raise ValueError(f"Invalid key format: {key}. Expected 'type name'")
+        
+        type_str, name = key_parts
+        
+        # Store the info message
+        self._msg_info_dict[name] = value
+        self._msg_info_dict_types[name] = type_str
+
+    def add_message_format(self, name, fields):
+        """
+        Add a message format definition to the ULog.
+        
+        :param name: Name of the message format
+        :param fields: List of field tuples (type, array_size, name)
+                      e.g. [('uint64_t', 0, 'timestamp'), ('float', 3, 'position')]
+        """
+        if not name or not isinstance(name, str):
+            raise ValueError("Message name must be a non-empty string")
+        
+        if not fields or not isinstance(fields, list):
+            raise ValueError("Fields must be a non-empty list")
+        
+        # Validate field format
+        for field in fields:
+            if not isinstance(field, tuple) or len(field) != 3:
+                raise ValueError("Each field must be a tuple of (type, array_size, name)")
+            
+            type_str, array_size, field_name = field
+            
+            if not isinstance(type_str, str) or not type_str:
+                raise ValueError("Field type must be a non-empty string")
+            
+            if not isinstance(array_size, int) or array_size < 0:
+                raise ValueError("Array size must be a non-negative integer")
+            
+            if not isinstance(field_name, str) or not field_name:
+                raise ValueError("Field name must be a non-empty string")
+        
+        # Create MessageFormat object
+        message_format = self.MessageFormat.__new__(self.MessageFormat)
+        message_format.name = name
+        message_format.fields = fields
+        
+        self._message_formats[name] = message_format
+
+    def add_data_message(self, message_name, multi_id=0, **field_data):
+        """
+        Add a data message to the ULog.
+        
+        :param message_name: Name of the message format (must be previously defined)
+        :param multi_id: Multi-instance ID (default 0)
+        :param field_data: Keyword arguments for field values
+        """
+        if message_name not in self._message_formats:
+            raise ValueError(f"Message format '{message_name}' not found. Add format first.")
+        
+        message_format = self._message_formats[message_name]
+        
+        # Find or create subscription
+        subscription = None
+        for sub in self._subscriptions.values():
+            if sub.message_name == message_name and sub.multi_id == multi_id:
+                subscription = sub
+                break
+        
+        if subscription is None:
+            # Create new subscription
+            msg_id = len(self._subscriptions)
+            subscription = self._MessageAddLogged.__new__(self._MessageAddLogged)
+            subscription.multi_id = multi_id
+            subscription.msg_id = msg_id
+            subscription.message_name = message_name
+            subscription.field_data = []
+            subscription.timestamp_idx = -1
+            subscription.max_data_size = 0
+            subscription.timestamp_offset = 0
+            subscription.buffer = bytearray()
+            
+            # Parse format to create field data
+            subscription._parse_format(self._message_formats)
+            
+            # Create numpy dtype
+            dtype_list = []
+            for field in subscription.field_data:
+                numpy_type = self._UNPACK_TYPES[field.type_str][2]
+                dtype_list.append((field.field_name, numpy_type))
+            subscription.dtype = np.dtype(dtype_list).newbyteorder('<')
+            
+            self._subscriptions[msg_id] = subscription
+        
+        # Validate field data - check for unknown fields and missing required fields
+        # Build set of expected field names (including array base names)
+        expected_fields = set()
+        for field in subscription.field_data:
+            field_name = field.field_name
+            if '[' in field_name and ']' in field_name:
+                # For array fields, add the base name
+                base_name = field_name.split('[')[0]
+                expected_fields.add(base_name)
+            else:
+                expected_fields.add(field_name)
+        
+        provided_fields = set(field_data.keys())
+        unknown_fields = provided_fields - expected_fields
+        if unknown_fields:
+            raise ValueError(f"Unknown fields: {unknown_fields}")
+        
+        # Check for missing required fields (except timestamp which gets auto-generated)
+        required_fields = expected_fields.copy()
+        if 'timestamp' in required_fields:
+            required_fields.remove('timestamp')  # timestamp is optional, auto-generated if missing
+        
+        missing_fields = required_fields - provided_fields
+        if missing_fields:
+            raise ValueError(f"Missing required fields: {missing_fields}")
+        
+        # Ensure timestamp is provided
+        if 'timestamp' not in field_data:
+            field_data['timestamp'] = self._last_timestamp
+        
+        # Update last timestamp
+        if field_data['timestamp'] > self._last_timestamp:
+            self._last_timestamp = field_data['timestamp']
+        
+        # Pack data according to format
+        data_bytes = bytearray()
+        for field in subscription.field_data:
+            field_name = field.field_name
+            field_type = field.type_str
+            
+            # Handle array fields (e.g., position[0], position[1], position[2])
+            if '[' in field_name and ']' in field_name:
+                # Extract base name and index
+                base_name = field_name.split('[')[0]
+                index_str = field_name.split('[')[1].split(']')[0]
+                index = int(index_str)
+                
+                if base_name in field_data:
+                    # Get value from array
+                    array_value = field_data[base_name]
+                    if isinstance(array_value, (list, tuple)) and index < len(array_value):
+                        value = array_value[index]
+                    else:
+                        # Use default value
+                        value = 0.0 if field_type in ['float', 'double'] else 0
+                else:
+                    # Use default value
+                    value = 0.0 if field_type in ['float', 'double'] else 0
+            else:
+                # Regular field
+                if field_name in field_data:
+                    value = field_data[field_name]
+                else:
+                    # Use default value (0 for numeric types)
+                    if field_type in ['float', 'double']:
+                        value = 0.0
+                    else:
+                        value = 0
+            
+            # Pack the value
+            pack_format = self._UNPACK_TYPES[field_type][0]
+            data_bytes.extend(struct.pack('<' + pack_format, value))
+        
+        # Add to subscription buffer
+        subscription.buffer.extend(data_bytes)
+
+    def add_data_bulk(self, message_name, data_list, multi_id=0):
+        """
+        Add multiple data messages efficiently in bulk.
+        
+        :param message_name: Name of the message format (must be previously defined)
+        :param data_list: List of data dictionaries, each containing field values for one sample
+                         OR dictionary with field names as keys and lists of values
+        :param multi_id: Multi-instance ID (default 0)
+        
+        Examples:
+        # List of dictionaries (one per sample)
+        data_list = [
+            {'timestamp': 1000, 'x': 1.0, 'y': 2.0},
+            {'timestamp': 2000, 'x': 1.1, 'y': 2.1},
+            {'timestamp': 3000, 'x': 1.2, 'y': 2.2}
+        ]
+        
+        # Dictionary of lists (one list per field)
+        data_list = {
+            'timestamp': [1000, 2000, 3000],
+            'x': [1.0, 1.1, 1.2],
+            'y': [2.0, 2.1, 2.2]
+        }
+        """
+        if message_name not in self._message_formats:
+            raise ValueError(f"Message format '{message_name}' not found. Add format first.")
+        
+        # Normalize input to list of dictionaries format
+        if isinstance(data_list, dict):
+            # Convert dictionary of lists to list of dictionaries
+            field_names = list(data_list.keys())
+            if not field_names:
+                return  # Nothing to add
+            
+            # Check all lists have same length
+            first_length = len(data_list[field_names[0]])
+            for field_name, values in data_list.items():
+                if len(values) != first_length:
+                    raise ValueError(f"All field lists must have same length. "
+                                   f"'{field_names[0]}' has {first_length}, "
+                                   f"'{field_name}' has {len(values)}")
+            
+            # Convert to list of dictionaries
+            normalized_data = []
+            for i in range(first_length):
+                sample = {}
+                for field_name, values in data_list.items():
+                    sample[field_name] = values[i]
+                normalized_data.append(sample)
+        
+        elif isinstance(data_list, list):
+            # Already in correct format
+            normalized_data = data_list
+        else:
+            raise ValueError("data_list must be either a list of dictionaries or a dictionary of lists")
+        
+        if not normalized_data:
+            return  # Nothing to add
+        
+        # Find or create subscription (reuse logic from add_data_message)
+        subscription = None
+        for sub in self._subscriptions.values():
+            if sub.message_name == message_name and sub.multi_id == multi_id:
+                subscription = sub
+                break
+        
+        if subscription is None:
+            # Create new subscription
+            msg_id = len(self._subscriptions)
+            subscription = self._MessageAddLogged.__new__(self._MessageAddLogged)
+            subscription.multi_id = multi_id
+            subscription.msg_id = msg_id
+            subscription.message_name = message_name
+            subscription.field_data = []
+            subscription.timestamp_idx = -1
+            subscription.max_data_size = 0
+            subscription.timestamp_offset = 0
+            subscription.buffer = bytearray()
+            
+            # Parse format to create field data
+            subscription._parse_format(self._message_formats)
+            
+            # Create numpy dtype
+            dtype_list = []
+            for field in subscription.field_data:
+                numpy_type = self._UNPACK_TYPES[field.type_str][2]
+                dtype_list.append((field.field_name, numpy_type))
+            subscription.dtype = np.dtype(dtype_list).newbyteorder('<')
+            
+            self._subscriptions[msg_id] = subscription
+        
+        # Build set of expected field names (including array base names)
+        expected_fields = set()
+        for field in subscription.field_data:
+            field_name = field.field_name
+            if '[' in field_name and ']' in field_name:
+                # For array fields, add the base name
+                base_name = field_name.split('[')[0]
+                expected_fields.add(base_name)
+            else:
+                expected_fields.add(field_name)
+        
+        # Process each data sample
+        for i, field_data in enumerate(normalized_data):
+            # Validate field data
+            provided_fields = set(field_data.keys())
+            unknown_fields = provided_fields - expected_fields
+            if unknown_fields:
+                raise ValueError(f"Unknown fields in sample {i}: {unknown_fields}")
+            
+            # Check for missing required fields (except timestamp which gets auto-generated)
+            required_fields = expected_fields.copy()
+            if 'timestamp' in required_fields:
+                required_fields.remove('timestamp')  # timestamp is optional, auto-generated if missing
+            
+            missing_fields = required_fields - provided_fields
+            if missing_fields:
+                raise ValueError(f"Missing required fields in sample {i}: {missing_fields}")
+            
+            # Ensure timestamp is provided
+            if 'timestamp' not in field_data:
+                field_data['timestamp'] = self._last_timestamp
+            
+            # Update last timestamp
+            if field_data['timestamp'] > self._last_timestamp:
+                self._last_timestamp = field_data['timestamp']
+            
+            # Pack data according to format
+            data_bytes = bytearray()
+            for field in subscription.field_data:
+                field_name = field.field_name
+                field_type = field.type_str
+                
+                # Handle array fields (e.g., position[0], position[1], position[2])
+                if '[' in field_name and ']' in field_name:
+                    # Extract base name and index
+                    base_name = field_name.split('[')[0]
+                    index_str = field_name.split('[')[1].split(']')[0]
+                    index = int(index_str)
+                    
+                    if base_name in field_data:
+                        # Get value from array
+                        array_value = field_data[base_name]
+                        if isinstance(array_value, (list, tuple)) and index < len(array_value):
+                            value = array_value[index]
+                        else:
+                            # Use default value
+                            value = 0.0 if field_type in ['float', 'double'] else 0
+                    else:
+                        # Use default value
+                        value = 0.0 if field_type in ['float', 'double'] else 0
+                else:
+                    # Regular field
+                    if field_name in field_data:
+                        value = field_data[field_name]
+                    else:
+                        # Use default value (0 for numeric types)
+                        if field_type in ['float', 'double']:
+                            value = 0.0
+                        else:
+                            value = 0
+                
+                # Pack the value
+                pack_format = self._UNPACK_TYPES[field_type][0]
+                data_bytes.extend(struct.pack('<' + pack_format, value))
+            
+            # Add to subscription buffer
+            subscription.buffer.extend(data_bytes)
+
+    def finalize_data(self):
+        """
+        Convert subscription buffers to final data representation.
+        This should be called before writing the ULog.
+        """
+        # Convert subscriptions to data_list (similar to what _read_file_data does)
+        for subscription in list(self._subscriptions.values()):
+            if len(subscription.buffer) > 0:
+                data_item = ULog.Data(subscription)
+                self._data_list.append(data_item)
+        
+        # Clear subscriptions to avoid double-processing
+        self._subscriptions.clear()
+        
+        # Sort data list for consistency
+        self._data_list.sort(key=lambda ds: (ds.name, ds.multi_id))
