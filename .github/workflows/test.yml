@@ -25,10 +25,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
-      - name: Install Dependencies
+      - name: Install Dependencies and pyulog
         run: |
-          pip install cython ddt numpy pylint pytest 'setuptools;python_version >= "3.12"'
-          python setup.py build install
+          pip install cython pylint 'setuptools;python_version >= "3.12"'
+          pip install --verbose .[test]
       - name: Running Tests
         run: |
           ./run_tests.sh

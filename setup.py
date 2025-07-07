@@ -51,7 +51,9 @@ setup(
         "numpy < 1.25; python_version < '3.9'",
         "numpy >= 1.25; python_version >= '3.9'",
     ],
-    tests_require=['pytest', 'ddt'],
+    extras_require = {
+        'test': ['pytest', 'ddt'],
+    },
     entry_points = {
         'console_scripts': [
             'ulog_extract_gps_dump=pyulog.extract_gps_dump:main',
