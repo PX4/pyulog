@@ -4,7 +4,7 @@
 This module allows you to parse ULog files, which are used within the PX4
 autopilot middleware.
 
-The file format is documented on https://docs.px4.io/master/en/dev_log/ulog_file_format.html
+The file format is documented on https://docs.px4.io/main/en/dev_log/ulog_file_format.html
 
 """
 
