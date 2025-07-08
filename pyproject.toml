@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyulog"
+description = "Python log parser for ULog"
+license = "BSD-3-Clause"
+dependencies = [
+    "numpy < 1.25; python_version < '3.9'",
+    "numpy >= 1.25; python_version >= '3.9'",
+]
+dynamic = [
+    "version",
+    "readme",
+]
+maintainers = [
+    { name = "James Goppert", email = "james.goppert@gmail.com" },
+    { name = "Beat Kueng", email = "beat-kueng@gmx.net" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Other",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+]
+
+[project.scripts]
+ulog_extract_gps_dump = "pyulog.extract_gps_dump:main"
+ulog_info = "pyulog.info:main"
+ulog_messages = "pyulog.messages:main"
+ulog_params = "pyulog.params:main"
+ulog2csv = "pyulog.ulog2csv:main"
+ulog2kml = "pyulog.ulog2kml:main"
+ulog2rosbag = "pyulog.ulog2rosbag:main"
+ulog_migratedb = "pyulog.migrate_db:main"
+
+[project.urls]
+Homepage = "https://github.com/PX4/pyulog"
+Repository = "https://github.com/PX4/pyulog"
+
+[project.optional-dependencies]
+test = ['pytest', 'ddt']
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages]
+find = {}

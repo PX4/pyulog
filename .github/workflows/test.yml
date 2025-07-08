@@ -27,7 +27,7 @@ jobs:
           allow-prereleases: true
       - name: Install Dependencies and pyulog
         run: |
-          pip install cython pylint 'setuptools;python_version >= "3.12"'
+          pip install pylint
           pip install --verbose .[test]
       - name: Running Tests
         run: |
