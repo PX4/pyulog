@@ -11,27 +11,27 @@ on:
       - published
 
 jobs:
-  build_sdist:
-    name: Build SDist
+  build_distributions:
+    name: Build Distributions
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
 
-    - name: Build SDist
-      run: pipx run build --sdist
+    - name: Build Distributions
+      run: pipx run build
 
     - name: Check Metadata
       run: pipx run twine check --strict dist/*
 
     - uses: actions/upload-artifact@v4
       with:
-        path: dist/*.tar.gz
+        path: dist/*
 
   upload_all:
     name: Upload if release
-    needs: [build_sdist]
+    needs: [build_distributions]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
     environment:
