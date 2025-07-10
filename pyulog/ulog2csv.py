@@ -6,6 +6,8 @@ Convert a ULog file into CSV file(s)
 
 import argparse
 import os
+import re
+
 import numpy as np
 
 from .core import ULog
@@ -50,6 +52,16 @@ def main():
                      args.time_s, args.time_e, args.ignore)
 
 
+def read_string_data(data: ULog.Data, field_name: str, array_size: int, data_index: int) -> str:
+    """ Parse a data field as string """
+    s = ''
+    for index in range(array_size):
+        character = data.data[f'{field_name}[{index}]'][data_index]
+        if character == 0:
+            break
+        s += chr(character)
+    return s
+
 def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e,
                      disable_str_exceptions=False):
     """
@@ -80,17 +92,36 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e
         base_name = os.path.basename(output_file_prefix)
         output_file_prefix = os.path.join(output, base_name)
 
+    array_pattern = re.compile(r"(.*)\[(.*?)\]")
+
+    def get_fields(data: ULog.Data) -> tuple[list[str], dict[str, int]]:
+        # use same field order as in the log, except for the timestamp
+        data_keys = []
+        string_array_sizes = {}
+        for f in data.field_data:
+            if f.field_name.startswith('_padding'):
+                continue
+            result = array_pattern.fullmatch(f.field_name)
+            if result and f.type_str == 'char':  # string (array of char's)
+                field, array_index = result.groups()
+                array_index = int(array_index)
+                string_array_sizes[field] = max(array_index + 1, string_array_sizes.get(field, 0))
+                if array_index == 0:
+                    data_keys.append(field)
+            else:
+                data_keys.append(f.field_name)
+        data_keys.remove('timestamp')
+        data_keys.insert(0, 'timestamp')  # we want timestamp at first position
+        return data_keys, string_array_sizes
+
     for d in data:
-        fmt = '{0}_{1}_{2}.csv'
-        output_file_name = fmt.format(output_file_prefix, d.name.replace('/', '_'), d.multi_id)
-        fmt = 'Writing {0} ({1} data points)'
-        # print(fmt.format(output_file_name, len(d.data['timestamp'])))
+        name_without_slash = d.name.replace('/', '_')
+        output_file_name = f'{output_file_prefix}_{name_without_slash}_{d.multi_id}.csv'
+        num_data_points = len(d.data['timestamp'])
+        print(f'Writing {output_file_name} ({num_data_points} data points)')
         with open(output_file_name, 'w', encoding='utf-8') as csvfile:
 
-            # use same field order as in the log, except for the timestamp
-            data_keys = [f.field_name for f in d.field_data]
-            data_keys.remove('timestamp')
-            data_keys.insert(0, 'timestamp')  # we want timestamp at first position
+            data_keys, string_array_sizes = get_fields(d)
 
             # we don't use np.savetxt, because we have multiple arrays with
             # potentially different data types. However the following is quite
@@ -110,7 +141,11 @@ def convert_ulog2csv(ulog_file_name, messages, output, delimiter, time_s, time_e
             last_elem = len(data_keys)-1
             for i in range(time_s_i, time_e_i):
                 for k in range(len(data_keys)):
-                    csvfile.write(str(d.data[data_keys[k]][i]))
+                    if data_keys[k] in string_array_sizes: # string
+                        s = read_string_data(d, data_keys[k], string_array_sizes[data_keys[k]], i)
+                        csvfile.write(s)
+                    else:
+                        csvfile.write(str(d.data[data_keys[k]][i]))
                     if k != last_elem:
                         csvfile.write(delimiter)
                 csvfile.write('\n')
