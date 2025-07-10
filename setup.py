@@ -17,5 +17,4 @@ setup(
     long_description="\n".join(DOCLINES),
     long_description_content_type='text/x-rst',
     platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
-    include_package_data=True,
 )
