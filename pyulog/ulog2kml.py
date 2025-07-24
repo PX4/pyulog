@@ -162,10 +162,9 @@ def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
 
     cur_dataset = cur_dataset[0]
 
-
-    pos_lon = cur_dataset.data['lon']
-    pos_lat = cur_dataset.data['lat']
-    pos_alt = cur_dataset.data['alt']
+    pos_lon = cur_dataset.data['lon'] if 'lon' in cur_dataset.data else cur_dataset.data['longitude_deg']
+    pos_lat = cur_dataset.data['lat'] if 'lat' in cur_dataset.data else cur_dataset.data['latitude_deg']
+    pos_alt = cur_dataset.data['alt'] if 'alt' in cur_dataset.data else cur_dataset.data['altitude_msl_m']
     pos_t = cur_dataset.data['timestamp']
 
     if 'fix_type' in cur_dataset.data:
