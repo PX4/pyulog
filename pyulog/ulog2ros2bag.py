@@ -151,6 +151,18 @@ def convert_ulog2ros2bag(
             print(f"Message type for {ulg_topic.name} is composed, skipping.")
             continue
 
+        # Verify message type
+        ros2_fields = MsgType.get_fields_and_field_types().keys()
+        good = True
+        for data in ulg_topic.field_data:
+            px4_field = data.field_name
+            if px4_field not in ros2_fields:
+                good = False
+        if not good:
+            print(f"Message type '{MsgType.__name__}' in px4_msgs does not match version found in ulog, skipping. Please check your version of px4_msgs.")
+            print(f"PX4 firmware version from ulog: {ulog.get_version_info_str()}")
+            continue
+
         # Register topic in rosbag
         writer.create_topic(
             topic_metadata(ros2_topic, f"px4_msgs/msg/{MsgType.__name__}")
