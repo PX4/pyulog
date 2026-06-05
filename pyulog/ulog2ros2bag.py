@@ -18,22 +18,10 @@ import numpy as np
 from pyulog import ULog
 
 EXCEPTIONS = {
-    "estimator_aid_src_baro_hgt": "EstimatorAidSource1d",
-    "estimator_aid_src_ev_pos": "EstimatorAidSource2d",
-    "estimator_aid_src_fake_hgt": "EstimatorAidSource1d",
-    "estimator_aid_src_fake_pos": "EstimatorAidSource2d",
-    "estimator_aid_src_gnss_hgt": "EstimatorAidSource1d",
-    "estimator_aid_src_gnss_pos": "EstimatorAidSource2d",
-    "estimator_aid_src_gnss_vel": "EstimatorAidSource3d",
-    "estimator_aid_src_gravity": "EstimatorAidSource3d",
-    "estimator_aid_src_mag": "EstimatorAidSource3d",
-    "estimator_aid_src_rng_hgt": "EstimatorAidSource1d",
     "estimator_attitude": "VehicleAttitude",
     "estimator_baro_bias": "EstimatorBias",
     "estimator_global_position": "VehicleGlobalPosition",
     "estimator_gnss_hgt_bias": "EstimatorBias",
-    "estimator_innovation_test_ratios": "EstimatorInnovations",
-    "estimator_innovation_variances": "EstimatorInnovations",
     "estimator_local_position": "VehicleLocalPosition",
     "estimator_odometry": "VehicleOdometry",
     "px4io_status": "Px4ioStatus",
@@ -124,7 +112,7 @@ def convert_ulog2ros2bag(
     if rosbag_topicmetadata_uses_id():
         topic_metadata = lambda name, type: rosbag2_py.TopicMetadata(
             0,
-            name=name,
+            name=name,  # type: ignore
             type=type,
             serialization_format="cdr",
         )
@@ -145,12 +133,9 @@ def convert_ulog2ros2bag(
             ros2_topic = "/px4/{}_{}".format(ulg_topic.name, ulg_topic.multi_id)
 
         # Determine ROS2 message type (px4_msgs)
-        direct_name = to_camel_case(ulg_topic.name)
-        if hasattr(px4_msgs, direct_name):
-            MsgType = getattr(px4_msgs, direct_name)
-        elif ulg_topic.name in EXCEPTIONS:
-            # Exception
-            MsgType = getattr(px4_msgs, EXCEPTIONS[ulg_topic.name])
+        msg_type_name = calc_msgtype(ulg_topic.name)
+        if msg_type_name is not None:
+            MsgType = getattr(px4_msgs, msg_type_name)
         else:
             print(
                 f"Message type '{to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
@@ -233,6 +218,42 @@ def rosbag_write_uses_seqnum():
         return version("rosbag2_py") >= "0.32.0"
     except:
         return False  # Default: <= Humble
+
+
+def calc_msgtype(topic_name: str) -> str | None:
+    """Calculate message type from topic name, if possible"""
+    direct_name = to_camel_case(topic_name)
+    global EXCEPTIONS
+
+    if hasattr(px4_msgs, direct_name):
+        return direct_name
+    elif topic_name.startswith("estimator_aid_src_"):
+        if any(
+            topic_name.endswith(suffix)
+            for suffix in ["hgt", "airspeed", "slideslip", "yaw"]
+        ):
+            return "EstimatorAidSource1d"
+        elif any(
+            topic_name.endswith(suffix)
+            for suffix in [
+                "pos",
+                "aux_global_position",
+                "aux_vel",
+                "optical_flow",
+                "drag",
+            ]
+        ):
+            return "EstimatorAidSource2d"
+        elif any(topic_name.endswith(suffix) for suffix in ["vel", "gravity", "mag"]):
+            return "EstimatorAidSource3d"
+        else:
+            return None
+    elif topic_name.startswith("estimator_innovation"):
+        return "EstimatorInnovations"
+    elif topic_name in EXCEPTIONS:
+        return EXCEPTIONS[topic_name]
+    else:
+        return None
 
 
 if __name__ == "__main__":
