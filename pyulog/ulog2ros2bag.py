@@ -1,0 +1,192 @@
+#! /usr/bin/env python
+
+"""
+Convert a ULog file into a ROS2 bag. Inspired by ulog2rosbag.py.
+"""
+
+from collections import defaultdict
+import argparse
+import re
+from rclpy.serialization import serialize_message  # pylint: disable=import-error
+import rosbag2_py  # pylint: disable=import-error
+from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
+import numpy as np
+
+# TODO: temporary for typing
+# from .core import ULog
+from pyulog import ULog
+
+EXCEPTIONS = {
+    "estimator_aid_src_baro_hgt": "EstimatorAidSource1d",
+    "estimator_aid_src_ev_pos": "EstimatorAidSource2d",
+    "estimator_aid_src_fake_hgt": "EstimatorAidSource1d",
+    "estimator_aid_src_fake_pos": "EstimatorAidSource2d",
+    "estimator_aid_src_gnss_hgt": "EstimatorAidSource1d",
+    "estimator_aid_src_gnss_pos": "EstimatorAidSource2d",
+    "estimator_aid_src_gnss_vel": "EstimatorAidSource3d",
+    "estimator_aid_src_gravity": "EstimatorAidSource3d",
+    "estimator_aid_src_mag": "EstimatorAidSource3d",
+    "estimator_aid_src_rng_hgt": "EstimatorAidSource1d",
+    "estimator_attitude": "VehicleAttitude",
+    "estimator_baro_bias": "EstimatorBias",
+    "estimator_global_position": "VehicleGlobalPosition",
+    "estimator_gnss_hgt_bias": "EstimatorBias",
+    "estimator_innovation_test_ratios": "EstimatorInnovations",
+    "estimator_innovation_variances": "EstimatorInnovations",
+    "estimator_local_position": "VehicleLocalPosition",
+    "estimator_odometry": "VehicleOdometry",
+    "px4io_status": "Px4ioStatus",
+    "vehicle_gps_position": "SensorGps",
+    "vehicle_visual_odometry": "VehicleOdometry",
+}
+
+# pylint: disable=too-many-locals, invalid-name
+
+
+def main():
+    """Command line interface"""
+
+    parser = argparse.ArgumentParser(description="Convert ULog to rosbag")
+    parser.add_argument("filename", metavar="file.ulg", help="ULog input file")
+    parser.add_argument("bag", metavar="rosbag_file", help="rosbag output file")
+
+    parser.add_argument(
+        "-m",
+        "--messages",
+        dest="messages",
+        help=(
+            "Only consider given messages. Must be a comma-separated list of"
+            " names, like 'sensor_combined,vehicle_gps_position'"
+        ),
+    )
+
+    parser.add_argument(
+        "-i",
+        "--ignore",
+        dest="ignore",
+        action="store_true",
+        help="Ignore string parsing exceptions",
+        default=False,
+    )
+
+    args = parser.parse_args()
+
+    convert_ulog2rosbag(args.filename, args.bag, args.messages, args.ignore)
+
+
+# https://stackoverflow.com/questions/19053707/converting-snake-case-to-lower-camel-case-lowercamelcase
+def to_camel_case(snake_str):
+    """Convert snake case string to camel case"""
+    components = snake_str.split("_")
+    return "".join(x.title() for x in components)
+
+
+def convert_ulog2rosbag(
+    ulog_file_name: str, rosbag_name: str, messages: str, disable_str_exceptions=False
+):
+    """
+    Coverts and ULog file to a CSV file.
+
+    :param ulog_file_name: The ULog filename to open and read
+    :param rosbag_name: The rosbag filename to open and write
+    :param messages: A list of message names
+
+    :return: No
+    """
+
+    msg_filter = messages.split(",") if messages else None
+
+    ulog = ULog(ulog_file_name, msg_filter, disable_str_exceptions)
+
+    multiids: dict[str, set[int]] = defaultdict(set)
+    for topic in ulog.data_list:
+        multiids[topic.name].add(topic.multi_id)
+
+    # ROS2 boilerplate
+    writer = rosbag2_py.SequentialWriter()
+
+    storage_options = rosbag2_py.StorageOptions(uri=rosbag_name, storage_id="sqlite3")
+    converter_options = rosbag2_py.ConverterOptions(
+        input_serialization_format="cdr", output_serialization_format="cdr"
+    )
+    writer.open(storage_options, converter_options)
+
+    topic_count, message_count = 0, 0
+    for ulg_topic in ulog.data_list:
+        topic_message_count = len(ulg_topic.data["timestamp"])
+        # Determine ROS2 topic name
+        if multiids[ulg_topic.name] == {0}:
+            ros2_topic = "/px4/{}".format(ulg_topic.name)
+        else:
+            ros2_topic = "/px4/{}_{}".format(ulg_topic.name, ulg_topic.multi_id)
+
+        # Determine ROS2 message type (px4_msgs)
+        direct_name = to_camel_case(ulg_topic.name)
+        if hasattr(px4_msgs, direct_name):
+            MsgType = getattr(px4_msgs, direct_name)
+        elif ulg_topic.name in EXCEPTIONS:
+            # Exception
+            MsgType = getattr(px4_msgs, EXCEPTIONS[ulg_topic.name])
+        else:
+            print(
+                f"Message type '{to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
+            )
+            continue
+
+        # Check if it is a composed message type
+        if any(
+            re.compile(r"(.*?)\.(.*?)").match(field.field_name)
+            for field in ulg_topic.field_data
+        ):
+            # TODO: add support for composed message types
+            print(f"Message type for {ulg_topic.name} is composed, skipping.")
+            continue
+
+        # Register topic in rosbag
+        topic_info = rosbag2_py.TopicMetadata(
+            name=ros2_topic,
+            type=f"px4_msgs/msg/{MsgType.__name__}",
+            serialization_format="cdr",
+        )
+        writer.create_topic(topic_info)
+
+        # Write each message
+        for i in range(len(ulg_topic.data["timestamp"])):
+            msg = MsgType()
+            for field in ulg_topic.field_data:
+                array_condition = re.compile(r"(.*?)\[(.*?)\]")
+                array_match = array_condition.match(field.field_name)
+                value = ulg_topic.data[field.field_name][i]
+                if array_match:
+                    field_name, array_index = array_match.groups()
+                    array_index = int(array_index)
+                    if value.dtype == np.int8:
+                        value = bool(value)
+                    getattr(msg, field_name)[array_index] = value
+                else:
+                    try:
+                        if value.dtype == np.int8:
+                            value = bool(value)
+                        else:
+                            value = value.item()
+                        setattr(msg, field.field_name, value)
+                    except Exception as e:
+                        print(
+                            f"Exception when setting field '{field.field_name}' from topic '{ulg_topic.name}' with type: {type(value)}"
+                        )
+                        raise e
+
+            ts = ulg_topic.data["timestamp"][i] * 1000  # us -> ns
+            writer.write(
+                ros2_topic,
+                serialize_message(msg),
+                int(ts),
+            )
+        topic_count += 1
+        message_count += topic_message_count
+
+    writer.close()
+    print(f"Wrote rosbag '{rosbag_name}' with {topic_count} topics and {message_count} messages.")
+
+if __name__ == "__main__":
+    main()
