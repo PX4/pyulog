@@ -8,6 +8,7 @@ from collections import defaultdict
 import argparse
 import re
 from rclpy.serialization import serialize_message  # pylint: disable=import-error
+from importlib.metadata import version
 import rosbag2_py  # pylint: disable=import-error
 from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
 import numpy as np
@@ -71,7 +72,7 @@ def main():
 
     args = parser.parse_args()
 
-    convert_ulog2rosbag(args.filename, args.bag, args.messages, args.ignore)
+    convert_ulog2ros2bag(args.filename, args.bag, args.messages, args.ignore)
 
 
 # https://stackoverflow.com/questions/19053707/converting-snake-case-to-lower-camel-case-lowercamelcase
@@ -81,7 +82,7 @@ def to_camel_case(snake_str):
     return "".join(x.title() for x in components)
 
 
-def convert_ulog2rosbag(
+def convert_ulog2ros2bag(
     ulog_file_name: str, rosbag_name: str, messages: str, disable_str_exceptions=False
 ):
     """
@@ -110,6 +111,29 @@ def convert_ulog2rosbag(
         input_serialization_format="cdr", output_serialization_format="cdr"
     )
     writer.open(storage_options, converter_options)
+
+    # Support rosbag2_py topic sequence number in ROS2 versions greater than Humble
+    if rosbag_write_uses_seqnum():
+        rosbag_write = lambda topic, msg, timestamp: writer.write(
+            topic, msg, timestamp, 0
+        )
+    else:
+        rosbag_write = lambda topic, msg, timestamp: writer.write(topic, msg, timestamp)
+
+    # Support rosbag2_py TopicMetadata ID in ROS2 versions greater than Humble
+    if rosbag_topicmetadata_uses_id():
+        topic_metadata = lambda name, type: rosbag2_py.TopicMetadata(
+            0,
+            name=name,
+            type=type,
+            serialization_format="cdr",
+        )
+    else:
+        topic_metadata = lambda name, type: rosbag2_py.TopicMetadata(
+            name=name,
+            type=type,
+            serialization_format="cdr",
+        )
 
     topic_count, message_count = 0, 0
     for ulg_topic in ulog.data_list:
@@ -143,12 +167,9 @@ def convert_ulog2rosbag(
             continue
 
         # Register topic in rosbag
-        topic_info = rosbag2_py.TopicMetadata(
-            name=ros2_topic,
-            type=f"px4_msgs/msg/{MsgType.__name__}",
-            serialization_format="cdr",
+        writer.create_topic(
+            topic_metadata(ros2_topic, f"px4_msgs/msg/{MsgType.__name__}")
         )
-        writer.create_topic(topic_info)
 
         # Write each message
         for i in range(len(ulg_topic.data["timestamp"])):
@@ -177,7 +198,7 @@ def convert_ulog2rosbag(
                         raise e
 
             ts = ulg_topic.data["timestamp"][i] * 1000  # us -> ns
-            writer.write(
+            rosbag_write(
                 ros2_topic,
                 serialize_message(msg),
                 int(ts),
@@ -186,7 +207,33 @@ def convert_ulog2rosbag(
         message_count += topic_message_count
 
     writer.close()
-    print(f"Wrote rosbag '{rosbag_name}' with {topic_count} topics and {message_count} messages.")
+    print(
+        f"Wrote rosbag '{rosbag_name}' with {topic_count} topics and {message_count} messages."
+    )
+
+
+def rosbag_topicmetadata_uses_id():
+    """
+    rosbag2_py PR #1538 adds a parameter to TopicMetadata.__init__() for a topic ID,
+    breaking the interface. This attempts to add compability with both versions.
+    """
+    try:
+        return version("rosbag2_py") >= "0.25.0"
+    except:
+        return False  # Default: <= Humble
+
+
+def rosbag_write_uses_seqnum():
+    """
+    rosbag2_py commit 62e5f77 adds a parameter to SequentialWriter.write() for a
+    topic sequence number, breaking the interface. This attempts to add compatibility
+    with both versions.
+    """
+    try:
+        return version("rosbag2_py") >= "0.32.0"
+    except:
+        return False  # Default: <= Humble
+
 
 if __name__ == "__main__":
     main()
