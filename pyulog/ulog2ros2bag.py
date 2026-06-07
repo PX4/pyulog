@@ -140,7 +140,7 @@ def convert_ulog2ros2bag(
         )
 
     if verbose:
-        print(f"D: ROS2 Distro: {environ.get('ROS_DISTRO') or 'not detected'}")
+        print(f"I: ROS2 Distro: {environ.get('ROS_DISTRO') or 'not detected'}")
         px4_msgs_share_dir = None
         try:
             from ament_index_python.packages import (
@@ -150,8 +150,8 @@ def convert_ulog2ros2bag(
             px4_msgs_share_dir = get_package_share_directory("px4_msgs")
         except:
             pass
-        print(f"D: ROS2 px4_msgs: {px4_msgs_share_dir or 'not found'}")
-        print(f"D: PX4 firmware version from ulog: {ulog.get_version_info_str()}")
+        print(f"I: ROS2 px4_msgs: {px4_msgs_share_dir or 'not found'}")
+        print(f"I: PX4 firmware version from ulog: {ulog.get_version_info_str()}")
         print("")
 
     topic_count, message_count = 0, 0
@@ -197,19 +197,23 @@ def convert_ulog2ros2bag(
 
         # Verify message type
         ros2_fields = MsgType.get_fields_and_field_types().keys()
-        good = True
-        for data in ulg_topic.field_data:
-            px4_field = data.field_name
-            if px4_field not in ros2_fields:
-                if verbose:
-                    print(
-                        f"D: field {px4_field} of {ulg_topic.name} not found in {MsgType.__name__}"
-                    )
-                good = False
-        if not good:
+        px4_fields = [
+            re.sub(r"\[\d+\]$", "", data.field_name) for data in ulg_topic.field_data
+        ]  # strip array indices
+        px4_fields = list(set(px4_fields))  # remove duplicates
+        if not all([px4_field in ros2_fields for px4_field in px4_fields]):
             print(
                 f"W: Message type px4_msgs/msg/{MsgType.__name__} does not match topic '{ulg_topic.name}' in ulog, skipping. Please check your version of px4_msgs."
             )
+            if verbose:
+                for px4_field in [
+                    px4_field
+                    for px4_field in px4_fields
+                    if px4_field not in ros2_fields
+                ]:
+                    print(
+                        f"D: field {px4_field} of {ulg_topic.name} not found in {MsgType.__name__}"
+                    )
             continue
 
         # Register topic in rosbag
@@ -221,7 +225,7 @@ def convert_ulog2ros2bag(
         for i in range(len(ulg_topic.data["timestamp"])):
             msg = MsgType()
             for field in ulg_topic.field_data:
-                array_condition = re.compile(r"(.*?)\[(.*?)\]")
+                array_condition = re.compile(r"(.*?)\[\d+\]")
                 array_match = array_condition.match(field.field_name)
                 value = ulg_topic.data[field.field_name][i]
                 if array_match:
