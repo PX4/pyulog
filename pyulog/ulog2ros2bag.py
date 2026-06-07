@@ -7,8 +7,9 @@ Convert a ULog file into a ROS2 bag. Inspired by ulog2rosbag.py.
 from collections import defaultdict
 import argparse
 import re
-from rclpy.serialization import serialize_message  # pylint: disable=import-error
+from os import environ
 from importlib.metadata import version
+from rclpy.serialization import serialize_message  # pylint: disable=import-error
 import rosbag2_py  # pylint: disable=import-error
 from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
 import numpy as np
@@ -58,9 +59,20 @@ def main():
         default=False,
     )
 
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        help="Print extra debugging information",
+        default=False,
+    )
+
     args = parser.parse_args()
 
-    convert_ulog2ros2bag(args.filename, args.bag, args.messages, args.ignore)
+    convert_ulog2ros2bag(
+        args.filename, args.bag, args.messages, args.ignore, args.verbose
+    )
 
 
 # https://stackoverflow.com/questions/19053707/converting-snake-case-to-lower-camel-case-lowercamelcase
@@ -71,7 +83,11 @@ def to_camel_case(snake_str):
 
 
 def convert_ulog2ros2bag(
-    ulog_file_name: str, rosbag_name: str, messages: str, disable_str_exceptions=False
+    ulog_file_name: str,
+    rosbag_name: str,
+    messages: str,
+    disable_str_exceptions=False,
+    verbose=False,
 ):
     """
     Coverts and ULog file to a CSV file.
@@ -123,14 +139,39 @@ def convert_ulog2ros2bag(
             serialization_format="cdr",
         )
 
+    if verbose:
+        print(f"D: ROS2 Distro: {environ.get('ROS_DISTRO') or 'not detected'}")
+        px4_msgs_share_dir = None
+        try:
+            from ament_index_python.packages import (
+                get_package_share_directory,
+            )  # pylint: disable=import-error
+
+            px4_msgs_share_dir = get_package_share_directory("px4_msgs")
+        except:
+            pass
+        print(f"D: ROS2 px4_msgs: {px4_msgs_share_dir or 'not found'}")
+        print(f"D: PX4 firmware version from ulog: {ulog.get_version_info_str()}")
+        print("")
+
     topic_count, message_count = 0, 0
     for ulg_topic in ulog.data_list:
         topic_message_count = len(ulg_topic.data["timestamp"])
+
         # Determine ROS2 topic name
         if multiids[ulg_topic.name] == {0}:
             ros2_topic = "/px4/{}".format(ulg_topic.name)
         else:
             ros2_topic = "/px4/{}_{}".format(ulg_topic.name, ulg_topic.multi_id)
+
+        if verbose:
+            if multiids[ulg_topic.name] == {0}:
+                ulg_topic_name = ulg_topic.name
+            else:
+                ulg_topic_name = f"{ulg_topic.name} ({ulg_topic.multi_id})"
+            print(
+                f"D: Processing ulog topic {ulg_topic_name} with {topic_message_count} messages and ROS2 topic {ros2_topic}"
+            )
 
         # Determine ROS2 message type (px4_msgs)
         msg_type_name = calc_msgtype(ulg_topic.name)
@@ -138,9 +179,12 @@ def convert_ulog2ros2bag(
             MsgType = getattr(px4_msgs, msg_type_name)
         else:
             print(
-                f"Message type '{to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
+                f"W: Message type '{to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
             )
             continue
+
+        if verbose:
+            print(f"D: Found ROS2 message type px4_msgs/msg/{MsgType.__name__}")
 
         # Check if it is a composed message type
         if any(
@@ -148,7 +192,7 @@ def convert_ulog2ros2bag(
             for field in ulg_topic.field_data
         ):
             # TODO: add support for composed message types
-            print(f"Message type for {ulg_topic.name} is composed, skipping.")
+            print(f"W: Message type for {ulg_topic.name} is composed, skipping.")
             continue
 
         # Verify message type
@@ -157,10 +201,15 @@ def convert_ulog2ros2bag(
         for data in ulg_topic.field_data:
             px4_field = data.field_name
             if px4_field not in ros2_fields:
+                if verbose:
+                    print(
+                        f"D: field {px4_field} of {ulg_topic.name} not found in {MsgType.__name__}"
+                    )
                 good = False
         if not good:
-            print(f"Message type '{MsgType.__name__}' in px4_msgs does not match version found in ulog, skipping. Please check your version of px4_msgs.")
-            print(f"PX4 firmware version from ulog: {ulog.get_version_info_str()}")
+            print(
+                f"W: Message type px4_msgs/msg/{MsgType.__name__} does not match topic '{ulg_topic.name}' in ulog, skipping. Please check your version of px4_msgs."
+            )
             continue
 
         # Register topic in rosbag
@@ -205,7 +254,7 @@ def convert_ulog2ros2bag(
 
     writer.close()
     print(
-        f"Wrote rosbag '{rosbag_name}' with {topic_count} topics and {message_count} messages."
+        f"\nWrote rosbag '{rosbag_name}' with {topic_count} topics and {message_count} messages."
     )
 
 
