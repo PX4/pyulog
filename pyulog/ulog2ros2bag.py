@@ -8,6 +8,7 @@ from collections import defaultdict
 import argparse
 import re
 from os import environ
+from pathlib import Path
 from importlib.metadata import version
 from rclpy.serialization import serialize_message  # pylint: disable=import-error
 import rosbag2_py  # pylint: disable=import-error
@@ -26,7 +27,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="Convert ULog to rosbag")
     parser.add_argument("filename", metavar="file.ulg", help="ULog input file")
-    parser.add_argument("bag", metavar="rosbag_file", help="rosbag output file")
+    parser.add_argument(
+        "-o", "--output", dest="bag", help="rosbag output folder", default=None,
+    )
 
     parser.add_argument(
         "-m",
@@ -72,7 +75,7 @@ def to_camel_case(snake_str):
 
 def convert_ulog2ros2bag(
     ulog_file_name: str,
-    rosbag_name: str,
+    rosbag_name: str | None,
     messages: str,
     disable_str_exceptions=False,
     verbose=False,
@@ -97,6 +100,11 @@ def convert_ulog2ros2bag(
 
     # ROS2 boilerplate
     writer = rosbag2_py.SequentialWriter()
+
+    # Default rosbag name from ulg file
+    rosbag_name = rosbag_name or "rosbag_" + re.sub(
+        r"\.ulg$", "", Path(ulog_file_name).name
+    )
 
     storage_options = rosbag2_py.StorageOptions(uri=rosbag_name, storage_id="sqlite3")
     converter_options = rosbag2_py.ConverterOptions(
