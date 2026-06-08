@@ -18,18 +18,6 @@ import numpy as np
 # from .core import ULog
 from pyulog import ULog
 
-EXCEPTIONS = {
-    "estimator_attitude": "VehicleAttitude",
-    "estimator_baro_bias": "EstimatorBias",
-    "estimator_global_position": "VehicleGlobalPosition",
-    "estimator_gnss_hgt_bias": "EstimatorBias",
-    "estimator_local_position": "VehicleLocalPosition",
-    "estimator_odometry": "VehicleOdometry",
-    "px4io_status": "Px4ioStatus",
-    "vehicle_gps_position": "SensorGps",
-    "vehicle_visual_odometry": "VehicleOdometry",
-}
-
 # pylint: disable=too-many-locals, invalid-name
 
 
@@ -151,7 +139,9 @@ def convert_ulog2ros2bag(
         except:
             pass
         print(f"I: ROS2 px4_msgs: {px4_msgs_share_dir or 'not found'}")
-        print(f"I: PX4 firmware version from ulog: {ulog.get_version_info_str()}")
+        print(
+            f"I: PX4 firmware version from ulog: {ulog.get_version_info_str() or 'not found'}"
+        )
         print("")
 
     topic_count, message_count = 0, 0
@@ -160,26 +150,25 @@ def convert_ulog2ros2bag(
 
         # Determine ROS2 topic name
         if multiids[ulg_topic.name] == {0}:
-            ros2_topic = "/px4/{}".format(ulg_topic.name)
+            ros2_topic = f"/px4/{ulg_topic.name}"
         else:
-            ros2_topic = "/px4/{}_{}".format(ulg_topic.name, ulg_topic.multi_id)
+            ros2_topic = f"/px4/{ulg_topic.name}_{ulg_topic.multi_id}"
 
         if verbose:
-            if multiids[ulg_topic.name] == {0}:
-                ulg_topic_name = ulg_topic.name
-            else:
-                ulg_topic_name = f"{ulg_topic.name} ({ulg_topic.multi_id})"
+            ulg_topic_name = ulg_topic.name
+            if multiids[ulg_topic.name] != {0}:
+                ulg_topic_name += f" ({ulg_topic.multi_id})"
             print(
                 f"D: Processing ulog topic {ulg_topic_name} with {topic_message_count} messages and ROS2 topic {ros2_topic}"
             )
 
         # Determine ROS2 message type (px4_msgs)
         msg_type_name = calc_msgtype(ulg_topic.name)
-        if msg_type_name is not None:
+        if msg_type_name is not None and hasattr(px4_msgs, msg_type_name):
             MsgType = getattr(px4_msgs, msg_type_name)
         else:
             print(
-                f"W: Message type '{to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
+                f"W: Message type '{msg_type_name or to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
             )
             continue
 
@@ -287,38 +276,44 @@ def rosbag_write_uses_seqnum():
 
 def calc_msgtype(topic_name: str) -> str | None:
     """Calculate message type from topic name, if possible"""
-    direct_name = to_camel_case(topic_name)
-    global EXCEPTIONS
+    REGEX_EXCEPTIONS = {
+        r"^actuator_controls_status_\d$": "ActuatorControlsStatus",
+        r"^actuator_outputs\w*": "ActuatorOutputs",
+        r"^config_overrides\w*": "ConfigOverrides",
+        r"^estimator_aid_src_((gnss_yaw)|(ev_yaw)|(fake_hgt)|(airspeed)|(sideslip)|(\w+_hgt))$": "EstimatorAidSource1d",
+        r"^estimator_aid_src_((drag)|(aux_vel)|(optical_flow)|(\w+_pos)|(aux_global_position))$": "EstimatorAidSource2d",
+        r"^estimator_aid_src_((ev_vel)|(gnss_vel)|(gravity)|(mag))$": "EstimatorAidSource3d",
+        r"^estimator_ev_pos_bias": "EstimatorBias3d",
+        r"^estimator_((baro)|(gnss_hgt))_bias": "EstimatorBias",
+        r"^estimator_innovation\w*": "EstimatorInnovations",
+        r"^px4io_status$": "Px4ioStatus",
+        r"^vehicle_gps_position$": "SensorGps",
+        r"^sensors_status_\w+": "SensorsStatus",
+        r"^vehicle_angular_velocity\w*": "VehicleAngularVelocity",
+        r"^\w+?attitude(_groundtruth)?$": "VehicleAttitude",
+        r"^\w+?attitude_setpoint$": "VehicleAttitudeSetpoint",
+        r"^\w+?_command\w*": "VehicleCommand",
+        r"^\w+?_control_\w+": "VehicleControlMode",
+        r"^((aux_)|(estimator_)|(vehicle_)|(external_ins_))global_position(_groundtruth)?$": "VehicleGlobalPosition",
+        r"^\w+?_local_position(_groundtruth)?$": "VehicleLocalPosition",
+        r"^\w+?_odometry$": "VehicleOdometry",
+        r"^((estimator)|(vehicle))_optical_flow_vel$": "VehicleOpticalFlowVel",
+        r"^vehicle_thrust_setpoint\w*": "VehicleThrustSetpoint",
+        r"^vehicle_torque_setpoint\w*": "VehicleTorqueSetpoint",
+        r"^(estimator_)?wind$": "Wind",
+    }
 
+    direct_name = to_camel_case(topic_name)
     if hasattr(px4_msgs, direct_name):
         return direct_name
-    elif topic_name.startswith("estimator_aid_src_"):
-        if any(
-            topic_name.endswith(suffix)
-            for suffix in ["hgt", "airspeed", "slideslip", "yaw"]
-        ):
-            return "EstimatorAidSource1d"
-        elif any(
-            topic_name.endswith(suffix)
-            for suffix in [
-                "pos",
-                "aux_global_position",
-                "aux_vel",
-                "optical_flow",
-                "drag",
-            ]
-        ):
-            return "EstimatorAidSource2d"
-        elif any(topic_name.endswith(suffix) for suffix in ["vel", "gravity", "mag"]):
-            return "EstimatorAidSource3d"
-        else:
-            return None
-    elif topic_name.startswith("estimator_innovation"):
-        return "EstimatorInnovations"
-    elif topic_name in EXCEPTIONS:
-        return EXCEPTIONS[topic_name]
-    else:
-        return None
+
+    result = None
+    for pattern, type_name in REGEX_EXCEPTIONS.items():
+        if re.match(pattern, topic_name):
+            result = type_name
+            break
+
+    return result
 
 
 if __name__ == "__main__":
