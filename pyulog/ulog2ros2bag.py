@@ -12,9 +12,7 @@ from pathlib import Path
 from importlib.metadata import version
 import numpy as np
 
-# TODO: temporary for typing
-# from .core import ULog
-from pyulog import ULog
+from .core import ULog
 
 # pylint: disable=too-many-locals, invalid-name
 
