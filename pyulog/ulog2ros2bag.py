@@ -10,9 +10,6 @@ import re
 from os import environ
 from pathlib import Path
 from importlib.metadata import version
-from rclpy.serialization import serialize_message  # pylint: disable=import-error
-import rosbag2_py  # pylint: disable=import-error
-from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
 import numpy as np
 
 # TODO: temporary for typing
@@ -94,6 +91,28 @@ def convert_ulog2ros2bag(
 
     :return: No
     """
+
+    # Wait until now to import ROS2 packages so they don't block the help message.
+    try:
+        from rclpy.serialization import (
+            serialize_message,
+        )  # pylint: disable=import-error
+        import rosbag2_py  # pylint: disable=import-error
+    except ImportError as e:
+        print(
+            f"Error: Could not import ROS2 packages. Make sure you have sourced your ROS2 installation."
+        )
+        print("Actual error:", e)
+        return
+
+    try:
+        from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
+    except ImportError as e:
+        print(
+            f"Error: Could not import px4_msgs. Make sure you have built and sourced the correct version of px4_msgs."
+        )
+        print("Actual error:", e)
+        return
 
     msg_filter = messages.split(",") if messages else None
 
@@ -289,6 +308,8 @@ def rosbag_write_uses_seqnum():
 
 def calc_msgtype(topic_name: str) -> str | None:
     """Calculate message type from topic name, if possible"""
+    from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
+
     REGEX_EXCEPTIONS = {
         r"^actuator_controls_status_\d$": "ActuatorControlsStatus",
         r"^actuator_outputs\w*": "ActuatorOutputs",
