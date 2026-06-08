@@ -27,8 +27,13 @@ def main():
 
     parser = argparse.ArgumentParser(description="Convert ULog to rosbag")
     parser.add_argument("filename", metavar="file.ulg", help="ULog input file")
+
     parser.add_argument(
-        "-o", "--output", dest="bag", help="rosbag output folder", default=None,
+        "-o",
+        "--output",
+        dest="bag",
+        help="rosbag output folder",
+        default=None,
     )
 
     parser.add_argument(
