@@ -98,7 +98,8 @@ def convert_ulog2ros2bag(
         import rosbag2_py  # pylint: disable=import-error
     except ImportError as e:
         print(
-            f"Error: Could not import ROS2 packages. Make sure you have sourced your ROS2 installation."
+            "Error: Could not import ROS2 packages. Make sure you have sourced"
+            " your ROS2 installation."
         )
         print("Actual error:", e)
         return
@@ -107,7 +108,8 @@ def convert_ulog2ros2bag(
         from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
     except ImportError as e:
         print(
-            f"Error: Could not import px4_msgs. Make sure you have built and sourced the correct version of px4_msgs."
+            "Error: Could not import px4_msgs. Make sure you have built and sourced"
+            " the correct version of px4_msgs."
         )
         print("Actual error:", e)
         return
@@ -189,7 +191,8 @@ def convert_ulog2ros2bag(
             if multiids[ulg_topic.name] != {0}:
                 ulg_topic_name += f" ({ulg_topic.multi_id})"
             print(
-                f"D: Processing ulog topic {ulg_topic_name} with {topic_message_count} messages and ROS2 topic {ros2_topic}"
+                f"D: Processing ulog topic {ulg_topic_name} with {topic_message_count}"
+                f" messages and ROS2 topic {ros2_topic}"
             )
 
         # Determine ROS2 message type (px4_msgs)
@@ -198,7 +201,8 @@ def convert_ulog2ros2bag(
             MsgType = getattr(px4_msgs, msg_type_name)
         else:
             print(
-                f"W: Message type '{msg_type_name or to_camel_case(ulg_topic.name)}' for {ulg_topic.name} not found in px4_msgs, skipping."
+                f"W: Message type '{msg_type_name or to_camel_case(ulg_topic.name)}'"
+                f" for {ulg_topic.name} not found in px4_msgs, skipping."
             )
             continue
 
@@ -222,7 +226,8 @@ def convert_ulog2ros2bag(
         px4_fields = list(set(px4_fields))  # remove duplicates
         if not all([px4_field in ros2_fields for px4_field in px4_fields]):
             print(
-                f"W: Message type px4_msgs/msg/{MsgType.__name__} does not match topic '{ulg_topic.name}' in ulog, skipping. Please check your version of px4_msgs."
+                f"W: Message type px4_msgs/msg/{MsgType.__name__} does not match topic"
+                f" '{ulg_topic.name}' in ulog, skipping. Please check your version of px4_msgs."
             )
             if verbose:
                 for px4_field in [
@@ -261,7 +266,8 @@ def convert_ulog2ros2bag(
                         setattr(msg, field.field_name, value)
                     except Exception as e:
                         print(
-                            f"Exception when setting field '{field.field_name}' from topic '{ulg_topic.name}' with type: {type(value)}"
+                            f"Exception when setting field '{field.field_name}' from"
+                            f" topic '{ulg_topic.name}' with type: {type(value)}"
                         )
                         raise e
 
@@ -285,10 +291,7 @@ def rosbag_topicmetadata_uses_id():
     rosbag2_py PR #1538 adds a parameter to TopicMetadata.__init__() for a topic ID,
     breaking the interface. This attempts to add compability with both versions.
     """
-    try:
-        return version("rosbag2_py") >= "0.25.0"
-    except:
-        return False  # Default: <= Humble
+    return version("rosbag2_py") >= "0.25.0"
 
 
 def rosbag_write_uses_seqnum():
@@ -297,10 +300,7 @@ def rosbag_write_uses_seqnum():
     topic sequence number, breaking the interface. This attempts to add compatibility
     with both versions.
     """
-    try:
-        return version("rosbag2_py") >= "0.32.0"
-    except:
-        return False  # Default: <= Humble
+    return version("rosbag2_py") >= "0.32.0"
 
 
 def calc_msgtype(topic_name: str) -> str | None:
