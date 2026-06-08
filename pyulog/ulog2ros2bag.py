@@ -207,7 +207,7 @@ def convert_ulog2ros2bag(
 
         # Check if it is a composed message type
         if any(
-            re.compile(r"(.*?)\.(.*?)").match(field.field_name)
+            re.match(r"(.*?)\.(.*?)", field.field_name)
             for field in ulg_topic.field_data
         ):
             # TODO: add support for composed message types
@@ -244,8 +244,7 @@ def convert_ulog2ros2bag(
         for i in range(len(ulg_topic.data["timestamp"])):
             msg = MsgType()
             for field in ulg_topic.field_data:
-                array_condition = re.compile(r"(.*?)\[(\d+)\]")
-                array_match = array_condition.match(field.field_name)
+                array_match = re.match(r"(.*?)\[(\d+)\]", field.field_name)
                 value = ulg_topic.data[field.field_name][i]
                 if array_match:
                     field_name, array_index = array_match.groups()
