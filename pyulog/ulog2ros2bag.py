@@ -12,6 +12,29 @@ from pathlib import Path
 from importlib.metadata import version
 import numpy as np
 
+# Do not exit on failing to import ROS2 packages so they don't block the help message.
+ros2_available = True
+try:
+    from rclpy.serialization import serialize_message  # pylint: disable=import-error
+    import rosbag2_py  # pylint: disable=import-error
+except ImportError as e:
+    print(
+        "Error: Could not import ROS2 packages. Make sure you have sourced"
+        " your ROS2 installation."
+    )
+    print("Actual error:", e)
+    ros2_available = False
+
+try:
+    from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
+except ImportError as e:
+    print(
+        "Error: Could not import px4_msgs. Make sure you have built and sourced"
+        " the correct version of px4_msgs."
+    )
+    print("Actual error:", e)
+    ros2_available = False
+
 from .core import ULog
 
 # pylint: disable=too-many-locals, invalid-name
@@ -61,6 +84,9 @@ def main():
 
     args = parser.parse_args()
 
+    if not ros2_available:
+        return  # Error messages printed in 'except ImportError' blocks above
+
     convert_ulog2ros2bag(
         args.filename, args.bag, args.messages, args.ignore, args.verbose
     )
@@ -89,30 +115,6 @@ def convert_ulog2ros2bag(
 
     :return: No
     """
-
-    # Wait until now to import ROS2 packages so they don't block the help message.
-    try:
-        from rclpy.serialization import (
-            serialize_message,
-        )  # pylint: disable=import-error
-        import rosbag2_py  # pylint: disable=import-error
-    except ImportError as e:
-        print(
-            "Error: Could not import ROS2 packages. Make sure you have sourced"
-            " your ROS2 installation."
-        )
-        print("Actual error:", e)
-        return
-
-    try:
-        from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
-    except ImportError as e:
-        print(
-            "Error: Could not import px4_msgs. Make sure you have built and sourced"
-            " the correct version of px4_msgs."
-        )
-        print("Actual error:", e)
-        return
 
     msg_filter = messages.split(",") if messages else None
 
@@ -305,7 +307,6 @@ def rosbag_write_uses_seqnum():
 
 def calc_msgtype(topic_name: str) -> str | None:
     """Calculate message type from topic name, if possible"""
-    from px4_msgs import msg as px4_msgs  # pylint: disable=import-error
 
     REGEX_EXCEPTIONS = {
         r"^actuator_controls_status_\d$": "ActuatorControlsStatus",
@@ -335,7 +336,7 @@ def calc_msgtype(topic_name: str) -> str | None:
     }
 
     direct_name = to_camel_case(topic_name)
-    if hasattr(px4_msgs, direct_name):
+    if hasattr(px4_msgs, direct_name):  # type: ignore
         return direct_name
 
     result = None
