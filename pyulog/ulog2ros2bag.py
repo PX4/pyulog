@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """
-Convert a ULog file into a ROS2 bag. Inspired by ulog2rosbag.py.
+Convert a ULog file into a ROS2 bag.
 """
 
 from collections import defaultdict
@@ -35,7 +35,8 @@ except ImportError as e:
     print("Actual error:", e)
     ros2_available = False
 
-from .core import ULog
+#from .core import ULog
+from pyulog import ULog
 
 # pylint: disable=too-many-locals, invalid-name
 
