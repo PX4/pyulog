@@ -12,6 +12,9 @@ from pathlib import Path
 from importlib.metadata import version
 import numpy as np
 
+from .core import ULog
+# from pyulog import ULog
+
 # Do not exit on failing to import ROS2 packages so they don't block the help message.
 ros2_available = True
 try:
@@ -34,9 +37,6 @@ except ImportError as e:
     )
     print("Actual error:", e)
     ros2_available = False
-
-#from .core import ULog
-from pyulog import ULog
 
 # pylint: disable=too-many-locals, invalid-name
 
@@ -168,10 +168,10 @@ def convert_ulog2ros2bag(
         try:
             from ament_index_python.packages import (
                 get_package_share_directory,
-            )  # pylint: disable=import-error
+            )  # pylint: disable=import-error, import-outside-toplevel
 
             px4_msgs_share_dir = get_package_share_directory("px4_msgs")
-        except:
+        except:  # pylint: disable=bare-except
             pass
         print(f"I: ROS2 px4_msgs: {px4_msgs_share_dir or 'not found'}")
         print(
@@ -309,8 +309,8 @@ def calc_msgtype(topic_name: str) -> str | None:
         r"^actuator_controls_status_\d$": "ActuatorControlsStatus",
         r"^actuator_outputs\w*": "ActuatorOutputs",
         r"^config_overrides\w*": "ConfigOverrides",
-        r"^estimator_aid_src_((gnss_yaw)|(ev_yaw)|(fake_hgt)|(airspeed)|(sideslip)|(\w+_hgt))$": "EstimatorAidSource1d",
-        r"^estimator_aid_src_((drag)|(aux_vel)|(optical_flow)|(\w+_pos)|(aux_global_position))$": "EstimatorAidSource2d",
+        r"^estimator_aid_src_((gnss_yaw)|(ev_yaw)|(fake_hgt)|(airspeed)|(sideslip)|(\w+_hgt))$": "EstimatorAidSource1d",  # pylint: disable=line-too-long
+        r"^estimator_aid_src_((drag)|(aux_vel)|(optical_flow)|(\w+_pos)|(aux_global_position))$": "EstimatorAidSource2d",  # pylint: disable=line-too-long
         r"^estimator_aid_src_((ev_vel)|(gnss_vel)|(gravity)|(mag))$": "EstimatorAidSource3d",
         r"^estimator_ev_pos_bias": "EstimatorBias3d",
         r"^estimator_((baro)|(gnss_hgt))_bias": "EstimatorBias",
@@ -323,7 +323,7 @@ def calc_msgtype(topic_name: str) -> str | None:
         r"^\w+?attitude_setpoint$": "VehicleAttitudeSetpoint",
         r"^\w+?_command\w*": "VehicleCommand",
         r"^\w+?_control_\w+": "VehicleControlMode",
-        r"^((aux_)|(estimator_)|(vehicle_)|(external_ins_))global_position(_groundtruth)?$": "VehicleGlobalPosition",
+        r"^((aux_)|(estimator_)|(vehicle_)|(external_ins_))global_position(_groundtruth)?$": "VehicleGlobalPosition",  # pylint: disable=line-too-long
         r"^\w+?_local_position(_groundtruth)?$": "VehicleLocalPosition",
         r"^\w+?_odometry$": "VehicleOdometry",
         r"^((estimator)|(vehicle))_optical_flow_vel$": "VehicleOpticalFlowVel",
@@ -346,6 +346,7 @@ def calc_msgtype(topic_name: str) -> str | None:
 
 
 def ros2ify_value(field_name: str, value, MsgType: object):
+    """Translate a pyulog numpy value to ros2 plain python value"""
     value_type: np.signedinteger | np.unsignedinteger | np.floating = value.dtype
 
     # int8 could either be int8_t, bool, or char
@@ -355,8 +356,8 @@ def ros2ify_value(field_name: str, value, MsgType: object):
     # startswith() accounts for array types
     if value_type == np.int8 and ros2_type.startswith("bool"):
         return bool(value)
-    else:
-        return value.item()
+
+    return value.item()
 
 
 if __name__ == "__main__":
