@@ -13,7 +13,6 @@ from importlib.metadata import version
 import numpy as np
 
 from .core import ULog
-# from pyulog import ULog
 
 # Do not exit on failing to import ROS2 packages so they don't block the help message.
 ros2_available = True
@@ -166,9 +165,9 @@ def convert_ulog2ros2bag(
         print(f"I: ROS2 Distro: {environ.get('ROS_DISTRO') or 'not detected'}")
         px4_msgs_share_dir = None
         try:
-            from ament_index_python.packages import (
-                get_package_share_directory,
-            )  # pylint: disable=import-error, import-outside-toplevel
+            # fmt: off
+            from ament_index_python.packages import get_package_share_directory  # pylint: disable=import-error, import-outside-toplevel
+            # fmt: on
 
             px4_msgs_share_dir = get_package_share_directory("px4_msgs")
         except:  # pylint: disable=bare-except
@@ -200,14 +199,14 @@ def convert_ulog2ros2bag(
 
         # Determine ROS2 message type (px4_msgs)
         msg_type_name = calc_msgtype(ulg_topic.name)
-        if msg_type_name is not None and hasattr(px4_msgs, msg_type_name):
-            MsgType = getattr(px4_msgs, msg_type_name)
-        else:
+        if msg_type_name is None or not hasattr(px4_msgs, msg_type_name):
             print(
                 f"W: Message type '{msg_type_name or to_camel_case(ulg_topic.name)}'"
                 f" for {ulg_topic.name} not found in px4_msgs, skipping."
             )
             continue
+
+        MsgType = getattr(px4_msgs, msg_type_name)
 
         if verbose:
             print(f"D: Found ROS2 message type px4_msgs/msg/{MsgType.__name__}")
@@ -227,7 +226,7 @@ def convert_ulog2ros2bag(
             re.sub(r"\[\d+\]$", "", data.field_name) for data in ulg_topic.field_data
         ]  # strip array indices
         px4_fields = list(set(px4_fields))  # remove duplicates
-        if not all([px4_field in ros2_fields for px4_field in px4_fields]):
+        if not all(px4_field in ros2_fields for px4_field in px4_fields):
             print(
                 f"W: Message type px4_msgs/msg/{MsgType.__name__} does not match topic"
                 f" '{ulg_topic.name}' in ulog, skipping. Please check your version of px4_msgs."
@@ -250,25 +249,7 @@ def convert_ulog2ros2bag(
 
         # Write each message
         for i in range(len(ulg_topic.data["timestamp"])):
-            msg = MsgType()
-            for field in ulg_topic.field_data:
-                array_match = re.match(r"(.*?)\[(\d+)\]", field.field_name)
-                value = ulg_topic.data[field.field_name][i]
-                if array_match:
-                    field_name, array_index = array_match.groups()
-                    array_index = int(array_index)
-                    value = ros2ify_value(field_name, value, MsgType)
-                    getattr(msg, field_name)[array_index] = value
-                else:
-                    try:
-                        value = ros2ify_value(field.field_name, value, MsgType)
-                        setattr(msg, field.field_name, value)
-                    except Exception as e:
-                        print(
-                            f"Exception when setting field '{field.field_name}' from"
-                            f" topic '{ulg_topic.name}' with type: {type(value)}"
-                        )
-                        raise e
+            msg = ros2_msg_from_ulg_topic(ulg_topic, i, MsgType)
 
             ts = ulg_topic.data["timestamp"][i] * 1000  # us -> ns
             rosbag_write(
@@ -358,6 +339,31 @@ def ros2ify_value(field_name: str, value, MsgType: object):
         return bool(value)
 
     return value.item()
+
+
+def ros2_msg_from_ulg_topic(ulg_topic: ULog.Data, i: int, MsgType):
+    """Create a ROS2 message object from a ulg topic message"""
+    msg = MsgType()
+    for field in ulg_topic.field_data:
+        array_match = re.match(r"(.*?)\[(\d+)\]", field.field_name)
+        value = ulg_topic.data[field.field_name][i]
+        if array_match:
+            field_name, array_index = array_match.groups()
+            array_index = int(array_index)
+            value = ros2ify_value(field_name, value, MsgType)
+            getattr(msg, field_name)[array_index] = value
+        else:
+            try:
+                value = ros2ify_value(field.field_name, value, MsgType)
+                setattr(msg, field.field_name, value)
+            except Exception as e:
+                print(
+                    f"Exception when setting field '{field.field_name}' from"
+                    f" topic '{ulg_topic.name}' with type: {type(value)}"
+                )
+                raise e
+
+    return msg
 
 
 if __name__ == "__main__":
