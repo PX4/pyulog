@@ -50,7 +50,7 @@ def main():
         "-o",
         "--output",
         dest="bag",
-        help="rosbag output folder",
+        help="rosbag output destination",
         default=None,
     )
 
@@ -256,15 +256,11 @@ def convert_ulog2ros2bag(
                 if array_match:
                     field_name, array_index = array_match.groups()
                     array_index = int(array_index)
-                    if value.dtype == np.int8:
-                        value = bool(value)
+                    value = ros2ify_value(field_name, value, MsgType)
                     getattr(msg, field_name)[array_index] = value
                 else:
                     try:
-                        if value.dtype == np.int8:
-                            value = bool(value)
-                        else:
-                            value = value.item()
+                        value = ros2ify_value(field.field_name, value, MsgType)
                         setattr(msg, field.field_name, value)
                     except Exception as e:
                         print(
@@ -346,6 +342,20 @@ def calc_msgtype(topic_name: str) -> str | None:
             break
 
     return result
+
+
+def ros2ify_value(field_name: str, value, MsgType: object):
+    value_type: np.signedinteger | np.unsignedinteger | np.floating = value.dtype
+
+    # int8 could either be int8_t, bool, or char
+    # check the destination type
+    ros2_type: str = MsgType.get_fields_and_field_types()[field_name]  # type: ignore
+
+    # startswith() accounts for array types
+    if value_type == np.int8 and ros2_type.startswith("bool"):
+        return bool(value)
+    else:
+        return value.item()
 
 
 if __name__ == "__main__":
