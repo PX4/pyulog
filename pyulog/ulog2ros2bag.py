@@ -14,6 +14,8 @@ import numpy as np
 
 from .core import ULog
 
+# pylint: disable=too-many-locals, invalid-name, too-many-branches
+
 # Do not exit on failing to import ROS2 packages so they don't block the help message.
 ros2_available = True
 try:
@@ -36,8 +38,6 @@ except ImportError as e:
     )
     print("Actual error:", e)
     ros2_available = False
-
-# pylint: disable=too-many-locals, invalid-name
 
 
 def main():
@@ -140,26 +140,28 @@ def convert_ulog2ros2bag(
 
     # Support rosbag2_py topic sequence number in ROS2 versions greater than Humble
     if rosbag_write_uses_seqnum():
-        rosbag_write = lambda topic, msg, timestamp: writer.write(
-            topic, msg, timestamp, 0
-        )
+        def rosbag_write(topic, msg, timestamp):
+            writer.write(topic, msg, timestamp, 0)
     else:
-        rosbag_write = lambda topic, msg, timestamp: writer.write(topic, msg, timestamp)
+        def rosbag_write(topic, msg, timestamp):
+            writer.write(topic, msg, timestamp)
 
     # Support rosbag2_py TopicMetadata ID in ROS2 versions greater than Humble
     if rosbag_topicmetadata_uses_id():
-        topic_metadata = lambda name, type: rosbag2_py.TopicMetadata(
-            0,
-            name=name,  # type: ignore
-            type=type,
-            serialization_format="cdr",
-        )
+        def topic_metadata(name, topic_type):
+            return rosbag2_py.TopicMetadata(
+                0,
+                name=name,  # type: ignore
+                type=topic_type,
+                serialization_format="cdr",
+            )
     else:
-        topic_metadata = lambda name, type: rosbag2_py.TopicMetadata(
-            name=name,
-            type=type,
-            serialization_format="cdr",
-        )
+        def topic_metadata(name, topic_type):
+            return rosbag2_py.TopicMetadata(
+                name=name,  # type: ignore
+                type=topic_type,
+                serialization_format="cdr",
+            )
 
     if verbose:
         print(f"I: ROS2 Distro: {environ.get('ROS_DISTRO') or 'not detected'}")
