@@ -55,6 +55,14 @@ def main():
     )
 
     parser.add_argument(
+        "--mcap",
+        dest="mcap",
+        action="store_true",
+        help="Use mcap storage in rosbag instead of sqlite3",
+        default=False,
+    )
+
+    parser.add_argument(
         "-m",
         "--messages",
         dest="messages",
@@ -88,7 +96,7 @@ def main():
         return  # Error messages printed in 'except ImportError' blocks above
 
     convert_ulog2ros2bag(
-        args.filename, args.bag, args.messages, args.ignore, args.verbose
+        args.filename, args.bag, args.mcap, args.messages, args.ignore, args.verbose
     )
 
 
@@ -102,6 +110,7 @@ def to_camel_case(snake_str):
 def convert_ulog2ros2bag(
     ulog_file_name: str,
     rosbag_name: str | None,
+    mcap: bool,
     messages: str,
     disable_str_exceptions=False,
     verbose=False,
@@ -132,7 +141,9 @@ def convert_ulog2ros2bag(
         r"\.ulg$", "", Path(ulog_file_name).name
     )
 
-    storage_options = rosbag2_py.StorageOptions(uri=rosbag_name, storage_id="sqlite3")
+    storage_options = rosbag2_py.StorageOptions(
+        uri=rosbag_name, storage_id="mcap" if mcap else "sqlite3"
+    )
     converter_options = rosbag2_py.ConverterOptions(
         input_serialization_format="cdr", output_serialization_format="cdr"
     )
@@ -140,14 +151,18 @@ def convert_ulog2ros2bag(
 
     # Support rosbag2_py topic sequence number in ROS2 versions greater than Humble
     if rosbag_write_uses_seqnum():
+
         def rosbag_write(topic, msg, timestamp):
             writer.write(topic, msg, timestamp, 0)
+
     else:
+
         def rosbag_write(topic, msg, timestamp):
             writer.write(topic, msg, timestamp)
 
     # Support rosbag2_py TopicMetadata ID in ROS2 versions greater than Humble
     if rosbag_topicmetadata_uses_id():
+
         def topic_metadata(name, topic_type):
             return rosbag2_py.TopicMetadata(
                 0,
@@ -155,7 +170,9 @@ def convert_ulog2ros2bag(
                 type=topic_type,
                 serialization_format="cdr",
             )
+
     else:
+
         def topic_metadata(name, topic_type):
             return rosbag2_py.TopicMetadata(
                 name=name,  # type: ignore
