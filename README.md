@@ -10,6 +10,7 @@ The provided [command line scripts](#scripts) are:
 - `ulog_params`: extract parameters from an ULog file.
 - `ulog2csv`: convert ULog to CSV files.
 - `ulog2kml`: convert ULog to KML files.
+- `ulog2ros2bag`: convert ULog to ROS2 bag files.
 
 
 ## Installation
@@ -212,27 +213,30 @@ optional arguments:
                         Camera trigger topic name (e.g. camera_capture)
 ```
 
-### Convert ULog to rosbag files (ulog2rosbag)
+### Convert ULog to ROS2 bag files (ulog2ros2bag)
 
-> **Note** You need a ROS environment with `px4_msgs` built and sourced.
+> **Note** You need a ROS2 environment with the corresponding version of `px4_msgs` built and sourced.
 
 Usage:
 ```
-usage: ulog2rosbag [-h] [-m MESSAGES] file.ulg result.bag
+usage: ulog2ros2bag.py [-h] [-o BAG] [-m MESSAGES] [-i] [-v] file.ulg
 
 Convert ULog to rosbag
 
 positional arguments:
   file.ulg              ULog input file
-  result.ulg            rosbag output file
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
+  -o BAG, --output BAG  rosbag output folder
   -m MESSAGES, --messages MESSAGES
                         Only consider given messages. Must be a comma-
                         separated list of names, like
                         'sensor_combined,vehicle_gps_position'
+  -i, --ignore          Ignore string parsing exceptions
+  -v, --verbose         Print extra debugging information
 ```
+
 ### Migrate/setup the database for use with the DatabaseULog class (ulog_migratedb)
 
 > **Warning** This command must be run whenever the schema changes, otherwise DatabaseULog won't function.
