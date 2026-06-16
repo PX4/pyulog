@@ -7,7 +7,7 @@ import argparse
 import sys
 
 from .core import ULog
-#pylint: disable=unused-variable, too-many-branches
+#pylint: disable=unused-variable, too-many-branches, consider-using-with
 
 def get_defaults(ulog, default):
     """ get default params from ulog """
@@ -35,8 +35,8 @@ def main():
                         help='csv|octave|qgc', default='csv')
 
     parser.add_argument('output_filename', metavar='params.txt',
-                        type=argparse.FileType('w'), nargs='?',
-                        help='Output filename (default=stdout)', default=sys.stdout)
+                        type=str, nargs='?',
+                        help='Output filename (default=stdout)', default=None)
 
     parser.add_argument('--ignore', dest='ignore', action='store_true',
                         help='Ignore string parsing exceptions', default=False)
@@ -62,7 +62,8 @@ def main():
 
     param_keys = sorted(params.keys())
     delimiter = args.delimiter
-    output_file = args.output_filename
+    output_file = sys.stdout if args.output_filename is None \
+        else open(args.output_filename, 'w', encoding='utf-8')
 
     if args.format == "csv":
         for param_key in param_keys:
