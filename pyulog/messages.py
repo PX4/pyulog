@@ -41,9 +41,11 @@ def main():
         logged_messages = sorted(events, key=lambda m: m[0])
 
     for t, log_level, message in logged_messages:
-        m1, s1 = divmod(int(t/1e6), 60)
+        total_ms = int(t / 1000)
+        m1, s1 = divmod(total_ms // 1000, 60)
         h1, m1 = divmod(m1, 60)
-        print("{:d}:{:02d}:{:02d} {:}: {:}".format(h1, m1, s1, log_level, message))
+        ms = total_ms % 1000
+        print("{:d}:{:02d}:{:02d}.{:03d} {:}: {:}".format(h1, m1, s1, ms, log_level, message))
 
 
 
