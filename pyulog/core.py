@@ -93,7 +93,7 @@ class ULog(object):
         return ret
 
     def __init__(self, log_file, message_name_filter_list=None, disable_str_exceptions=True,
-                 parse_header_only=False):
+                 parse_header_only=False, sort_data=False):
         """
         Initialize the object & load the file.
 
@@ -101,6 +101,8 @@ class ULog(object):
         :param message_name_filter_list: list of strings, to only load messages
                with the given names. If None, load everything.
         :param disable_str_parser_exceptions: If True, ignore string parsing errors
+        :param sort_data: If True, sort the data by timestamp so comparison doesn't fail when
+               the data was streamed in a different order
         """
 
         self._debug = False
@@ -135,7 +137,7 @@ class ULog(object):
         ULog._disable_str_exceptions = disable_str_exceptions
 
         if log_file is not None:
-            self._load_file(log_file, message_name_filter_list, parse_header_only)
+            self._load_file(log_file, message_name_filter_list, parse_header_only, sort_data)
 
     ## parsed data
 
@@ -848,7 +850,8 @@ class ULog(object):
             self._msg_info_multiple_dict[msg_info.key] = [[msg_info.value]]
             self._msg_info_multiple_dict_types[msg_info.key] = msg_info.type
 
-    def _load_file(self, log_file, message_name_filter_list, parse_header_only=False):
+    def _load_file(self, log_file, message_name_filter_list, parse_header_only=False,
+                   sort_data=False):
         """ load and parse an ULog file into memory """
         if isinstance(log_file, str):
             self._file_handle = open(log_file, "rb") #pylint: disable=consider-using-with
@@ -877,6 +880,18 @@ class ULog(object):
 
         # read the whole file, or the rest if data appended
         self._read_file_data(message_name_filter_list)
+
+        if sort_data:
+            for dataset in self._data_list:
+                for field_name in dataset.data.keys():
+                    # we must lexsort because unordered data often causes
+                    # overlapping data points, hence we sort by the overlapping
+                    # value too
+                    sort_idx = np.lexsort((
+                        dataset.data['timestamp'],
+                        dataset.data[field_name],
+                    ))
+                    dataset.data[field_name] = dataset.data[field_name][sort_idx]
 
         self._file_handle.close()
         del self._file_handle
