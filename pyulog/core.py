@@ -648,6 +648,9 @@ class ULog(object):
             else:
                 b_pos = type_str.find(']')
                 array_size = int(type_str[a_pos+1:b_pos])
+                # malformed/huge array size from an untrusted log -> range() DoS
+                if array_size < 0 or array_size > 0xFFFF:
+                    raise ValueError("invalid array size: %d" % array_size)
                 type_name = type_str[:a_pos]
             return type_name, array_size, name_str
 
@@ -872,8 +875,13 @@ class ULog(object):
             if self._debug:
                 print('This file has data appended')
             for offset in self._appended_offsets:
-                self._read_file_data(message_name_filter_list, read_until=offset)
-                self._file_handle.seek(offset)
+                try:
+                    self._read_file_data(message_name_filter_list, read_until=offset)
+                    self._file_handle.seek(offset)
+                except (OverflowError, ValueError, OSError):
+                    # bogus appended offset from a corrupt FLAG_BITS -> corruption
+                    self._file_corrupt = True
+                    break
 
         # read the whole file, or the rest if data appended
         self._read_file_data(message_name_filter_list)
@@ -900,9 +908,9 @@ class ULog(object):
             data = self._file_handle.read(3)
             if not data:
                 break
-            header.initialize(data)
-            data = self._file_handle.read(header.msg_size)
             try:
+                header.initialize(data)
+                data = self._file_handle.read(header.msg_size)
                 if header.msg_type == self.MSG_TYPE_INFO:
                     msg_info = self._MessageInfo(data, header)
                     self._msg_info_dict[msg_info.key] = msg_info.value
@@ -958,7 +966,11 @@ class ULog(object):
                         # skipping the message
                         self._file_handle.seek(-2-header.msg_size, 1)
 
-            except IndexError:
+            except (IndexError, ValueError, KeyError, OverflowError, struct.error) as exc:
+                # Keep the intentional incompatible-flag abort ("cannot parse the
+                # log"); treat any other failure as corruption, like _read_file_data.
+                if isinstance(exc, ValueError) and 'cannot parse the log' in str(exc):
+                    raise
                 if not self._file_corrupt:
                     print("File corruption detected while reading file definitions!")
                     self._file_corrupt = True
@@ -1118,7 +1130,8 @@ class ULog(object):
                             if self._has_sync:
                                 self._find_sync(header.msg_size)
 
-                except IndexError:
+                except (IndexError, KeyError, ValueError, OverflowError):
+                    # malformed message (KeyError/ValueError/OverflowError) -> corruption
                     if not self._file_corrupt:
                         print("File corruption detected while reading file data!")
                         self._file_corrupt = True
