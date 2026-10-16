@@ -6,6 +6,7 @@ import os
 import inspect
 import unittest
 import tempfile
+import struct
 from io import BytesIO
 
 from ddt import ddt, data
@@ -88,5 +89,55 @@ class TestULog(unittest.TestCase):
                 assert copied_value[1:] == original_value[1:] # pylint: disable=unsubscriptable-object
             else:
                 assert copied_value == original_value
+
+    @staticmethod
+    def _build_ulog(*messages):
+        '''
+        Build a minimal ULog file in memory from (msg_type, payload) tuples.
+        '''
+        content = pyulog.ULog.HEADER_BYTES + b'\x01' + struct.pack('<Q', 0)
+        for msg_type, payload in messages:
+            content += struct.pack('<HB', len(payload), ord(msg_type)) + payload
+        return BytesIO(content)
+
+    def test_invalid_header(self):
+        '''
+        Test that a file with an invalid header raises a ULogException.
+        '''
+        for content in [b'ULog', b'\x00' * 16]:
+            with self.assertRaises(pyulog.ULogException):
+                pyulog.ULog(BytesIO(content))
+
+    @data(b'\x02' + bytes(7), # unknown flag in the first byte
+          b'\x00\x01' + bytes(6)) # any flag in the other bytes
+    def test_unknown_incompat_flag(self, incompat_flags):
+        '''
+        Test that an unknown incompatible flag raises a ULogIncompatibleFlagException.
+        '''
+        flag_bits = bytes(8) + incompat_flags + bytes(3 * 8)
+        with self.assertRaises(pyulog.ULogIncompatibleFlagException):
+            pyulog.ULog(self._build_ulog(('B', flag_bits)))
+
+    def test_corrupt_definitions(self):
+        '''
+        Test that malformed definitions are flagged as file corruption instead of raising.
+        '''
+        invalid_array_size = b'foo:uint8_t[x] a;'
+        bogus_appended_offset = bytes(8) + b'\x01' + bytes(7) + struct.pack('<QQQ', 1 << 63, 0, 0)
+        for msg_type, payload in [('F', invalid_array_size), ('B', bogus_appended_offset)]:
+            ulog = pyulog.ULog(self._build_ulog((msg_type, payload)))
+            assert ulog.file_corruption
+
+    def test_strict_string_parsing(self):
+        '''
+        Test that string parsing errors still raise with disable_str_exceptions=False,
+        both for an info message (definitions) and a logged string (data section).
+        '''
+        info = bytes([10]) + b'char[2] ab' + b'\xff\xfe'
+        logged_string = b'6' + bytes(8) + b'\xff\xfe'
+        for msg_type, payload in [('I', info), ('L', logged_string)]:
+            with self.assertRaises(UnicodeDecodeError):
+                pyulog.ULog(self._build_ulog((msg_type, payload)), disable_str_exceptions=False)
+            assert not pyulog.ULog(self._build_ulog((msg_type, payload))).file_corruption
 
 # vim: set et fenc=utf-8 ft=python ff=unix sts=4 sw=4 ts=4
