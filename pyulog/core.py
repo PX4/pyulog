@@ -5,6 +5,7 @@ import copy
 import sys
 import contextlib
 import numpy as np
+from .exceptions import ULogException, ULogIncompatibleFlagException
 #pylint: disable=too-many-instance-attributes, unused-argument, missing-docstring
 #pylint: disable=protected-access, too-many-branches
 
@@ -101,6 +102,7 @@ class ULog(object):
         :param message_name_filter_list: list of strings, to only load messages
                with the given names. If None, load everything.
         :param disable_str_parser_exceptions: If True, ignore string parsing errors
+        :raises ULogException: if the file cannot be parsed (invalid header, incompatible flag)
         """
 
         self._debug = False
@@ -875,8 +877,8 @@ class ULog(object):
             if self._debug:
                 print('This file has data appended')
             for offset in self._appended_offsets:
+                self._read_file_data(message_name_filter_list, read_until=offset)
                 try:
-                    self._read_file_data(message_name_filter_list, read_until=offset)
                     self._file_handle.seek(offset)
                 except (OverflowError, ValueError, OSError):
                     # bogus appended offset from a corrupt FLAG_BITS -> corruption
@@ -892,9 +894,9 @@ class ULog(object):
     def _read_file_header(self):
         header_data = self._file_handle.read(16)
         if len(header_data) != 16:
-            raise TypeError("Invalid file format (Header too short)")
+            raise ULogException("Invalid file format (Header too short)")
         if header_data[:7] != self.HEADER_BYTES:
-            raise TypeError("Invalid file format (Failed to parse header)")
+            raise ULogException("Invalid file format (Failed to parse header)")
         self._file_version, = struct.unpack('B', header_data[7:8])
         if self._file_version > 1:
             print("Warning: unknown file version. Will attempt to read it anyway")
@@ -949,10 +951,10 @@ class ULog(object):
                     unknown_incompat_flag_msg = \
                     "Unknown incompatible flag set: cannot parse the log"
                     if self._incompat_flags[0] & ~1:
-                        raise ValueError(unknown_incompat_flag_msg)
+                        raise ULogIncompatibleFlagException(unknown_incompat_flag_msg)
                     for i in range(1, 8):
                         if self._incompat_flags[i]:
-                            raise NotImplementedError(unknown_incompat_flag_msg)
+                            raise ULogIncompatibleFlagException(unknown_incompat_flag_msg)
 
                 else:
                     if self._debug:
@@ -966,11 +968,9 @@ class ULog(object):
                         # skipping the message
                         self._file_handle.seek(-2-header.msg_size, 1)
 
-            except (IndexError, ValueError, KeyError, OverflowError, struct.error) as exc:
-                # Keep the intentional incompatible-flag abort ("cannot parse the
-                # log"); treat any other failure as corruption, like _read_file_data.
-                if isinstance(exc, ValueError) and 'cannot parse the log' in str(exc):
-                    raise
+            except UnicodeDecodeError:
+                raise # strict string parsing (disable_str_exceptions=False)
+            except (IndexError, ValueError, KeyError, OverflowError, struct.error):
                 if not self._file_corrupt:
                     print("File corruption detected while reading file definitions!")
                     self._file_corrupt = True
@@ -1130,8 +1130,9 @@ class ULog(object):
                             if self._has_sync:
                                 self._find_sync(header.msg_size)
 
+                except UnicodeDecodeError:
+                    raise # strict string parsing (disable_str_exceptions=False)
                 except (IndexError, KeyError, ValueError, OverflowError):
-                    # malformed message (KeyError/ValueError/OverflowError) -> corruption
                     if not self._file_corrupt:
                         print("File corruption detected while reading file data!")
                         self._file_corrupt = True
