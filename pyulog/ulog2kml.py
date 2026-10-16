@@ -12,6 +12,19 @@ from .core import ULog
 #pylint: disable=too-many-locals, invalid-name, consider-using-enumerate, too-many-arguments
 #pylint: disable=unused-variable
 
+# GNSS topics, newest first: vehicle_gnss replaced vehicle_gps_position
+_GNSS_TOPICS = ['vehicle_gnss', 'vehicle_gps_position']
+
+# Names of each position field: 'lon' in vehicle_global_position, camera_capture
+# and older vehicle_gps_position, 'longitude_deg' in vehicle_gps_position and
+# 'receiver.longitude' in vehicle_gnss
+_POSITION_FIELDS = {
+    'lon': ['lon', 'longitude_deg', 'receiver.longitude'],
+    'lat': ['lat', 'latitude_deg', 'receiver.latitude'],
+    'alt': ['alt', 'altitude_msl_m', 'receiver.altitude_msl'],
+    'fix_type': ['fix_type', 'receiver.fix_type'],
+}
+
 
 def main():
     """Command line interface"""
@@ -22,8 +35,9 @@ def main():
     parser.add_argument('-o', '--output', dest='output_filename',
                         help="output filename", default='track.kml')
     parser.add_argument('--topic', dest='topic_name',
-                        help="topic name with position data (default=vehicle_gps_position)",
-                        default='vehicle_gps_position')
+                        help="topic name with position data (default=vehicle_gnss, or"
+                        " vehicle_gps_position in older logs)",
+                        default=None)
     parser.add_argument('--camera-trigger', dest='camera_trigger',
                         help="Camera trigger topic name (e.g. camera_capture)",
                         default=None)
@@ -39,7 +53,7 @@ def main():
 
     # alternative example call:
 #    convert_ulog2kml(args.filename, 'test.kml', ['vehicle_global_position',
-#        'vehicle_gps_position'], [_kml_default_colors, lambda x: simplekml.Color.green])
+#        'vehicle_gnss'], [_kml_default_colors, lambda x: simplekml.Color.green])
 
 
 def _kml_default_colors(x):
@@ -55,8 +69,8 @@ def _kml_default_colors(x):
 
 
 
-def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
-                     'vehicle_gps_position', colors=_kml_default_colors, altitude_offset=0,
+def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=None,
+                     colors=_kml_default_colors, altitude_offset=0,
                      minimum_interval_s=0.1, style=None, camera_trigger_topic_name=None,
                      disable_str_exceptions=False):
     """
@@ -64,8 +78,9 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
 
     :param ulog_file_name: The ULog filename to open and read
     :param output_file_name: KML Output file name
-    :param position_topic_name: either name of a topic (must have 'lon', 'lat' &
-           'alt' fields), or a list of topic names
+    :param position_topic_name: either name of a topic with a position, or a list
+           of topic names. Defaults to vehicle_gnss, or vehicle_gps_position in
+           older logs
     :param colors: lambda function with flight mode (int) (or -1) as input and
            returns a color (eg 'fffff8f0') (or list of lambda functions if
            multiple position_topic_name's)
@@ -92,6 +107,9 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
             used_style[key] = style[key]
 
 
+    default_topic = position_topic_name is None
+    if default_topic:
+        position_topic_name = _GNSS_TOPICS
     if not isinstance(position_topic_name, list):
         position_topic_name = [position_topic_name]
         colors = [colors]
@@ -101,6 +119,12 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
     if camera_trigger_topic_name is not None:
         load_topic_names.append(camera_trigger_topic_name)
     ulog = ULog(ulog_file_name, load_topic_names, disable_str_exceptions)
+
+    if default_topic:
+        logged_topics = {elem.name for elem in ulog.data_list}
+        position_topic_name = [next((topic for topic in _GNSS_TOPICS if topic in logged_topics),
+                                    _GNSS_TOPICS[0])]
+        colors = [colors]
 
     # get flight modes
     try:
@@ -121,6 +145,16 @@ def convert_ulog2kml(ulog_file_name, output_file_name, position_topic_name=
     kml.save(output_file_name)
 
 
+def _get_field(data, name, required=True):
+    """ data of position field `name`, under whichever name the topic uses """
+    for field_name in _POSITION_FIELDS[name]:
+        if field_name in data:
+            return data[field_name]
+    if required:
+        raise KeyError(name + ' not found in data')
+    return None
+
+
 def _kml_add_camera_triggers(kml, ulog, camera_trigger_topic_name, altitude_offset):
     """
     Add camera trigger points to the map
@@ -134,13 +168,9 @@ def _kml_add_camera_triggers(kml, ulog, camera_trigger_topic_name, altitude_offs
     if len(cur_dataset) > 0:
         cur_dataset = cur_dataset[0]
 
-        # 'longitude_deg' is used in newer PX4 versions
-        pos_lon = (cur_dataset.data['lon'] if 'lon' in cur_dataset.data else
-                   cur_dataset.data['longitude_deg'])
-        pos_lat = (cur_dataset.data['lat'] if 'lat' in cur_dataset.data else
-                   cur_dataset.data['latitude_deg'])
-        pos_alt = (cur_dataset.data['alt'] if 'alt' in cur_dataset.data else
-                   cur_dataset.data['altitude_msl_m'])
+        pos_lon = _get_field(cur_dataset.data, 'lon')
+        pos_lat = _get_field(cur_dataset.data, 'lat')
+        pos_alt = _get_field(cur_dataset.data, 'alt')
         sequence = cur_dataset.data['seq']
 
         for i in range(len(pos_lon)):
@@ -167,17 +197,14 @@ def _kml_add_position_data(kml, ulog, position_topic_name, colors, style,
     cur_dataset = cur_dataset[0]
 
 
-    # 'longitude_deg' is used in newer PX4 versions
-    pos_lon = (cur_dataset.data['lon'] if 'lon' in cur_dataset.data else
-               cur_dataset.data['longitude_deg'])
-    pos_lat = (cur_dataset.data['lat'] if 'lat' in cur_dataset.data else
-               cur_dataset.data['latitude_deg'])
-    pos_alt = (cur_dataset.data['alt'] if 'alt' in cur_dataset.data else
-               cur_dataset.data['altitude_msl_m'])
+    pos_lon = _get_field(cur_dataset.data, 'lon')
+    pos_lat = _get_field(cur_dataset.data, 'lat')
+    pos_alt = _get_field(cur_dataset.data, 'alt')
     pos_t = cur_dataset.data['timestamp']
+    fix_type = _get_field(cur_dataset.data, 'fix_type', required=False)
 
-    if 'fix_type' in cur_dataset.data:
-        indices = cur_dataset.data['fix_type'] > 2 # use only data with a fix
+    if fix_type is not None:
+        indices = fix_type > 2 # use only data with a fix
         pos_lon = pos_lon[indices]
         pos_lat = pos_lat[indices]
         pos_alt = pos_alt[indices]
