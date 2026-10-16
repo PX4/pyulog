@@ -178,7 +178,7 @@ optional arguments:
   -m MESSAGES, --messages MESSAGES
                         Only consider given messages. Must be a comma-
                         separated list of names, like
-                        'sensor_combined,vehicle_gps_position'
+                        'sensor_combined,vehicle_gnss'
   -d DELIMITER, --delimiter DELIMITER
                         Use delimiter in CSV (default is ',')
   -o DIR, --output DIR  Output directory (default is same as input file)
@@ -208,7 +208,8 @@ optional arguments:
   -o OUTPUT_FILENAME, --output OUTPUT_FILENAME
                         output filename
   --topic TOPIC_NAME    topic name with position data
-                        (default=vehicle_gps_position)
+                        (default=vehicle_gnss, or vehicle_gps_position in
+                        older logs)
   --camera-trigger CAMERA_TRIGGER
                         Camera trigger topic name (e.g. camera_capture)
 ```
@@ -232,7 +233,7 @@ options:
   -m MESSAGES, --messages MESSAGES
                         Only consider given messages. Must be a comma-
                         separated list of names, like
-                        'sensor_combined,vehicle_gps_position'
+                        'sensor_combined,vehicle_gnss'
   -i, --ignore          Ignore string parsing exceptions
   -v, --verbose         Print extra debugging information
 ```

@@ -23,7 +23,7 @@ def main():
     parser.add_argument(
         '-m', '--messages', dest='messages',
         help=("Only consider given messages. Must be a comma-separated list of"
-              " names, like 'sensor_combined,vehicle_gps_position'"))
+              " names, like 'sensor_combined,vehicle_gnss'"))
     parser.add_argument('-d', '--delimiter', dest='delimiter', action='store',
                         help="Use delimiter in CSV (default is ',')", default=',')
 
