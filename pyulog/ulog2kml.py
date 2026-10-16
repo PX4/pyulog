@@ -65,7 +65,7 @@ def _kml_default_colors(x):
                   simplekml.Color.lawngreen, simplekml.Color.indianred, simplekml.Color.hotpink,
                   simplekml.Color.bisque, simplekml.Color.cyan, simplekml.Color.darksalmon,
                   simplekml.Color.deepskyblue, simplekml.Color.lime, simplekml.Color.orchid]
-    return colors_arr[x]
+    return colors_arr[x % len(colors_arr)]
 
 
 
