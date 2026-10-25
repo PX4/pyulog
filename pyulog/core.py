@@ -7,7 +7,7 @@ import contextlib
 import numpy as np
 from .exceptions import ULogException, ULogIncompatibleFlagException
 #pylint: disable=too-many-instance-attributes, unused-argument, missing-docstring
-#pylint: disable=protected-access, too-many-branches
+#pylint: disable=protected-access, too-many-branches, too-many-lines
 
 __author__ = "Beat Kueng"
 
