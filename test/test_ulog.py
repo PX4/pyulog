@@ -162,7 +162,7 @@ class TestDataStringFields(unittest.TestCase):
         '''
         ulog_file_name = os.path.join(TEST_PATH, 'sample_px4_events.ulg')
         ulog = pyulog.ULog(ulog_file_name)
-        topic = [d for d in ulog.data_list if d.name == 'transponder_report'][0]
+        topic = ulog.get_dataset('transponder_report')
         assert topic.list_string_fields() == ['callsign']
         strings = topic.get_string_field('callsign')
         assert len(strings) == len(topic.data['timestamp'])
