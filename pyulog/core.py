@@ -7,7 +7,7 @@ import contextlib
 import numpy as np
 from .exceptions import ULogException, ULogIncompatibleFlagException
 #pylint: disable=too-many-instance-attributes, unused-argument, missing-docstring
-#pylint: disable=protected-access, too-many-branches
+#pylint: disable=protected-access, too-many-branches, too-many-lines
 
 __author__ = "Beat Kueng"
 
@@ -559,6 +559,55 @@ class ULog(object):
             indices = np.where(x[:-1] != x[1:])[0] + 1
             ret.extend(zip(t[indices], x[indices]))
             return ret
+
+        def _char_array_columns(self):
+            """ group the columns of all char array fields by field name.
+
+            A field declared as e.g. 'char[9] callsign' is stored as the
+            individual columns 'callsign[0]' to 'callsign[8]'. Returns a dict
+            that maps the field name ('callsign') to the ordered list of
+            its column names. A plain 'char' field maps to its own name.
+            """
+            columns = {}
+            for field in self.field_data:
+                if field.type_str != 'char':
+                    continue
+                name = field.field_name
+                base_name = name
+                if name.endswith(']') and '[' in name:
+                    base_name = name[:name.rindex('[')]
+                columns.setdefault(base_name, []).append(name)
+            return columns
+
+        def list_string_fields(self):
+            """ return the names of all char (array) fields of this data set,
+            e.g. ['callsign'] for a field declared as 'char[9] callsign' """
+            return list(self._char_array_columns().keys())
+
+        def get_string_field(self, field_name):
+            """ return a char (array) field converted to strings.
+
+            The individual char columns of the field (see
+            list_string_fields()) are combined into one string per data
+            point, so the result is an np.ndarray of strings with one entry
+            per sample. Each string ends at the first NUL byte and
+            undecodable bytes are replaced.
+
+            :param field_name: name of the field, e.g. 'callsign'
+            :return: np.ndarray with the field's strings
+            """
+            columns = self._char_array_columns()
+            if field_name not in columns:
+                raise KeyError('field {!r} is not a char (array) field of '
+                               'the {!r} data set'.format(field_name, self.name))
+            column_data = [self.data[name] for name in columns[field_name]]
+            # shape: (num samples, num chars); int8 -> raw bytes per sample
+            raw = np.array(column_data, dtype=np.int8).T.view(np.uint8)
+            strings = []
+            for row in raw:
+                strings.append(bytes(row).split(b'\x00', 1)[0].decode(
+                    'utf-8', errors='replace'))
+            return np.array(strings)
 
 
 
