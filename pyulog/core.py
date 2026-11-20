@@ -815,10 +815,12 @@ class ULog(object):
         def _parse_format(self, message_formats):
             self._parse_nested_type('', self.message_name, message_formats)
 
-            # remove padding fields at the end
+            # remove padding fields at the end. A writer may or may not log them,
+            # so they still count for the max data size.
             while (len(self.field_data) > 0 and
                    self.field_data[-1].field_name.startswith('_padding')):
-                self.field_data.pop()
+                padding_field = self.field_data.pop()
+                self.max_data_size += ULog._UNPACK_TYPES[padding_field.type_str][1]
 
         def _parse_nested_type(self, prefix_str, type_name, message_formats):
             # we flatten nested types
