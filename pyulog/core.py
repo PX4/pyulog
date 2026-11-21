@@ -962,6 +962,10 @@ class ULog(object):
             try:
                 header.initialize(data)
                 data = self._file_handle.read(header.msg_size)
+                if len(data) < header.msg_size:
+                    # short read: truncated file or bogus msg_size -> corruption
+                    self._file_corrupt = True
+                    break
                 if header.msg_type == self.MSG_TYPE_INFO:
                     msg_info = self._MessageInfo(data, header)
                     self._msg_info_dict[msg_info.key] = msg_info.value
