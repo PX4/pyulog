@@ -129,6 +129,24 @@ class TestULog(unittest.TestCase):
             ulog = pyulog.ULog(self._build_ulog((msg_type, payload)))
             assert ulog.file_corruption
 
+    def test_short_read_in_definitions(self):
+        '''
+        Test that a length field larger than the remaining file is flagged as
+        corruption instead of seeking backwards past the start.
+        '''
+        for msg_type, msg_size in ((0, 100), (ord('L'), 1000), (ord('K'), 0xFFFF),
+                                   (ord('C'), 100), (0x7F, 20000)):
+            content = pyulog.ULog.HEADER_BYTES + b'\x01' + struct.pack('<Q', 0)
+            content += struct.pack('<HB', msg_size, msg_type)  # header only
+            assert pyulog.ULog(BytesIO(content)).file_corruption
+
+            # a real file raises OSError from seek() without the fix
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, 'bogus.ulg')
+                with open(path, 'wb') as log_file:
+                    log_file.write(content)
+                assert pyulog.ULog(path).file_corruption
+
     def test_strict_string_parsing(self):
         '''
         Test that string parsing errors still raise with disable_str_exceptions=False,
