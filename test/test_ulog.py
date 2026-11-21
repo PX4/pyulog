@@ -91,6 +91,35 @@ class TestULog(unittest.TestCase):
             else:
                 assert copied_value == original_value
 
+    def test_data_in_appended_section(self):
+        '''
+        Test that data messages after an appended data offset are read with
+        the subscriptions from before it.
+        '''
+        def message(msg_type, payload):
+            return struct.pack('<HB', len(payload), ord(msg_type)) + payload
+
+        def data_msg(timestamp, x):
+            return message('D', struct.pack('<HQB', 1, timestamp, x))
+
+        def build(appended_offset):
+            flag_bits = bytes(8) + b'\x01' + bytes(7) + struct.pack('<QQQ', appended_offset, 0, 0)
+            return self._build_ulog(
+                ('B', flag_bits),
+                ('F', b'app:uint64_t timestamp;uint8_t x;'),
+                ('A', struct.pack('<BH', 0, 1) + b'app')).getvalue() + data_msg(1, 10)
+
+        # the log is cut inside a message, and the appended data starts after the cut
+        cut_message = data_msg(2, 0)[:7]
+        appended_offset = len(build(0)) + len(cut_message)
+        content = build(appended_offset) + cut_message + data_msg(3, 30)
+
+        ulog = pyulog.ULog(BytesIO(content))
+        assert not ulog.file_corruption
+        dataset = ulog.get_dataset('app')
+        np.testing.assert_array_equal(dataset.data['timestamp'], [1, 3])
+        np.testing.assert_array_equal(dataset.data['x'], [10, 30])
+
     @staticmethod
     def _build_ulog(*messages):
         '''
