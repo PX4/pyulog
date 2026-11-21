@@ -936,6 +936,7 @@ class ULog(object):
 
         # read the whole file, or the rest if data appended
         self._read_file_data(message_name_filter_list)
+        self._convert_subscriptions()
 
         self._file_handle.close()
         del self._file_handle
@@ -1189,7 +1190,12 @@ class ULog(object):
         except struct.error:
             pass #we read past the end of the file
 
-        # convert into final representation
+    def _convert_subscriptions(self):
+        """
+        convert the data of all subscriptions into the final representation.
+        Called once after the whole file is read: data in the appended sections
+        needs the subscriptions of the data before them.
+        """
         while self._subscriptions:
             _, value = self._subscriptions.popitem()
             if len(value.buffer) > 0: # only add if we have data
