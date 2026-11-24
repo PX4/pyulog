@@ -791,7 +791,6 @@ class ULog(object):
             self.message_name = ULog.parse_string(data[3:])
             self.field_data = [] # list of _FieldData
             self.timestamp_idx = -1
-            self.max_data_size = 0 # Max size of each data point (including padding fields at end)
 
             self._parse_format(message_formats)
 
@@ -807,13 +806,17 @@ class ULog(object):
             dtype_list = []
             for field in self.field_data:
                 numpy_type = ULog._UNPACK_TYPES[field.type_str][2]
-                self.max_data_size += ULog._UNPACK_TYPES[field.type_str][1]
                 dtype_list.append((field.field_name, numpy_type))
             self.dtype = np.dtype(dtype_list).newbyteorder('<')
 
 
         def _parse_format(self, message_formats):
             self._parse_nested_type('', self.message_name, message_formats)
+
+            # Calculate the maximum size (including optional padding at the end)
+            self.max_data_size = 0
+            for field in self.field_data:
+                self.max_data_size += ULog._UNPACK_TYPES[field.type_str][1]
 
             # remove padding fields at the end
             while (len(self.field_data) > 0 and
