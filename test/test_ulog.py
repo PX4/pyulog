@@ -158,6 +158,46 @@ class TestULog(unittest.TestCase):
             ulog = pyulog.ULog(self._build_ulog((msg_type, payload)))
             assert ulog.file_corruption
 
+    def test_trailing_padding_in_data(self):
+        '''
+        Test that data is read with or without its trailing padding field,
+        and that longer data is flagged as corruption.
+        '''
+        fmt = ('F', b'pad:uint64_t timestamp;uint8_t x;uint8_t[7] _padding0;')
+        add = ('A', struct.pack('<BH', 0, 1) + b'pad')
+
+        def data_msg(timestamp, x, padding=b''):
+            return ('D', struct.pack('<HQB', 1, timestamp, x) + padding)
+
+        ulog = pyulog.ULog(self._build_ulog(
+            fmt, add, data_msg(1, 10), data_msg(2, 20, bytes(7))))
+        assert not ulog.file_corruption
+        dataset = ulog.get_dataset('pad')
+        np.testing.assert_array_equal(dataset.data['timestamp'], [1, 2])
+        np.testing.assert_array_equal(dataset.data['x'], [10, 20])
+        assert not any(name.startswith('_padding') for name in dataset.data)
+
+        ulog = pyulog.ULog(self._build_ulog(fmt, add, data_msg(1, 10, bytes(8))))
+        assert ulog.file_corruption
+
+    def test_short_read_in_definitions(self):
+        '''
+        Test that a length field larger than the remaining file is flagged as
+        corruption instead of seeking backwards past the start.
+        '''
+        for msg_type, msg_size in ((0, 100), (ord('L'), 1000), (ord('K'), 0xFFFF),
+                                   (ord('C'), 100), (0x7F, 20000)):
+            content = pyulog.ULog.HEADER_BYTES + b'\x01' + struct.pack('<Q', 0)
+            content += struct.pack('<HB', msg_size, msg_type)  # header only
+            assert pyulog.ULog(BytesIO(content)).file_corruption
+
+            # a real file raises OSError from seek() without the fix
+            with tempfile.TemporaryDirectory() as tmpdir:
+                path = os.path.join(tmpdir, 'bogus.ulg')
+                with open(path, 'wb') as log_file:
+                    log_file.write(content)
+                assert pyulog.ULog(path).file_corruption
+
     def test_strict_string_parsing(self):
         '''
         Test that string parsing errors still raise with disable_str_exceptions=False,
